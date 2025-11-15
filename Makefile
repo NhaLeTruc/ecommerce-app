@@ -79,18 +79,50 @@ docker-restart: docker-down docker-up ## Restart all Docker services
 
 migrate: ## Run database migrations
 	@echo "$(GREEN)Running database migrations...$(NC)"
-	@echo "TODO: Add migration commands for each service"
-	# @cd services/catalog-service && python -m alembic upgrade head
-	# @cd services/inventory-service && migrate -path migrations -database "$(DATABASE_URL)" up
+	@echo "Note: Database schemas are initialized via init scripts in infrastructure/"
+	@echo "For schema changes, update the init scripts and rebuild the database"
+	@echo ""
+	@echo "Available migration tools for future use:"
+	@echo "  - Python services (catalog, payment): Alembic (pip install alembic)"
+	@echo "  - Go services (inventory, user, notification): golang-migrate"
+	@echo "  - TypeScript services (cart, order): Custom migration scripts"
+	@echo ""
+	@echo "To add migrations:"
+	@echo "  1. Install migration tool for your service"
+	@echo "  2. Create migration files"
+	@echo "  3. Update this Makefile with the migration command"
 
 migrate-rollback: ## Rollback last database migration
 	@echo "$(YELLOW)Rolling back database migrations...$(NC)"
-	@echo "TODO: Add rollback commands for each service"
-	# @cd services/catalog-service && python -m alembic downgrade -1
+	@echo "Note: Currently using init scripts for schema management"
+	@echo "To rollback, restore from database backup or manually drop/recreate database"
+	@echo ""
+	@echo "For production deployments, set up proper migration tools:"
+	@echo "  - Alembic for Python: cd services/catalog-service && alembic downgrade -1"
+	@echo "  - golang-migrate for Go: migrate -path migrations -database 'postgres://...' down 1"
 
-migrate-create: ## Create a new migration (usage: make migrate-create name=add_users_table)
-	@echo "$(GREEN)Creating new migration: $(name)$(NC)"
-	@echo "TODO: Add migration creation commands"
+migrate-create: ## Create a new migration (usage: make migrate-create service=catalog name=add_column)
+	@if [ -z "$(service)" ] || [ -z "$(name)" ]; then \
+		echo "$(RED)Error: Both service and name are required$(NC)"; \
+		echo "Usage: make migrate-create service=catalog name=add_column"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Creating new migration: $(name) for $(service)-service$(NC)"
+	@case "$(service)" in \
+		catalog|payment) \
+			echo "For Python services, use: cd services/$(service)-service && alembic revision -m '$(name)'"; \
+			;; \
+		inventory|user|notification) \
+			echo "For Go services, use: migrate create -ext sql -dir services/$(service)-service/migrations -seq $(name)"; \
+			;; \
+		cart|order) \
+			echo "For TypeScript services, create migration in services/$(service)-service/migrations/$(name).sql"; \
+			;; \
+		*) \
+			echo "$(RED)Unknown service: $(service)$(NC)"; \
+			exit 1; \
+			;; \
+	esac
 
 seed: ## Seed database with test data
 	@echo "$(GREEN)Seeding database...$(NC)"
@@ -310,10 +342,33 @@ install-tools: ## Install required development tools
 
 docs: ## Generate documentation
 	@echo "$(GREEN)Generating documentation...$(NC)"
-	@echo "TODO: Add documentation generation commands"
+	@echo "Documentation files available:"
+	@echo "  - README.md - Main platform documentation"
+	@echo "  - ARCHITECTURE.md - Technical architecture details"
+	@echo "  - DEPLOYMENT.md - Deployment guide"
+	@echo "  - PLATFORM_SUMMARY.md - Implementation summary"
+	@echo "  - docs/api/openapi.yaml - OpenAPI specification"
+	@echo ""
+	@echo "To view API docs, run: make api-docs-serve"
 
 api-docs: ## Generate API documentation
 	@echo "$(GREEN)Generating API documentation...$(NC)"
-	@echo "TODO: Add OpenAPI/Swagger generation"
+	@echo "OpenAPI specification available at: docs/api/openapi.yaml"
+	@echo ""
+	@echo "To view interactive API docs:"
+	@echo "  1. Install Swagger UI: npm install -g swagger-ui-watcher"
+	@echo "  2. Run: make api-docs-serve"
+	@echo ""
+	@echo "Or use online viewer: https://editor.swagger.io/"
+
+api-docs-serve: ## Serve API documentation (requires swagger-ui-watcher)
+	@if command -v swagger-ui-watcher > /dev/null; then \
+		echo "$(GREEN)Starting Swagger UI...$(NC)"; \
+		swagger-ui-watcher docs/api/openapi.yaml; \
+	else \
+		echo "$(YELLOW)swagger-ui-watcher not installed$(NC)"; \
+		echo "Install with: npm install -g swagger-ui-watcher"; \
+		echo "Or view online: https://editor.swagger.io/"; \
+	fi
 
 .DEFAULT_GOAL := help
