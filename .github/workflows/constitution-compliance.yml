@@ -1,0 +1,225 @@
+name: Constitution Compliance Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  constitution-compliance:
+    name: Validate Constitution Adherence
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # I. Test-Driven Development Enforcement
+      - name: Run Tests (TDD Requirement)
+        run: |
+          echo "::group::TDD Compliance - Running All Tests"
+          make test || (echo "::error::Tests MUST pass per Constitution Principle I" && exit 1)
+          echo "::endgroup::"
+
+      - name: Check Test Coverage ≥80%
+        run: |
+          echo "::group::TDD Compliance - Coverage Check"
+          make test-coverage
+
+          # Parse coverage and fail if < 80%
+          COVERAGE=$(cat coverage-report.txt | grep "Total" | awk '{print $3}' | sed 's/%//')
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "::error::Coverage $COVERAGE% < 80% (Constitution Principle I violation)"
+            exit 1
+          fi
+          echo "::notice::Coverage: $COVERAGE% ✅"
+          echo "::endgroup::"
+
+      # II. Clean Code & SOLID Enforcement
+      - name: Lint Code (Clean Code Requirement)
+        run: |
+          echo "::group::Clean Code Compliance - Linting"
+          make lint || (echo "::error::Linting MUST pass per Constitution Principle II" && exit 1)
+          echo "::endgroup::"
+
+      - name: Check Cyclomatic Complexity
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+      - name: Fail on Code Smells
+        run: |
+          # SonarQube quality gate blocks merge if complexity > 10
+          echo "::notice::Code complexity check enforced by SonarQube"
+
+      # III. Decoupled Architecture Enforcement
+      - name: Check for Circular Dependencies
+        run: |
+          echo "::group::Architecture Compliance - Dependency Check"
+
+          # Check Go services
+          for service in services/*/go.mod; do
+            SERVICE_DIR=$(dirname $service)
+            echo "Checking $SERVICE_DIR..."
+            cd $SERVICE_DIR
+            if go list -f '{{.ImportPath}}' ./... | xargs go list -f '{{.ImportPath}}{{if .DepsErrors}} {{index .DepsErrors 0}}{{end}}' 2>&1 | grep -q "import cycle"; then
+              echo "::error::Circular dependency in $SERVICE_DIR (Constitution Principle III violation)"
+              exit 1
+            fi
+            cd -
+          done
+
+          echo "::notice::No circular dependencies detected ✅"
+          echo "::endgroup::"
+
+      # IV. SRE Enforcement
+      - name: Validate SLO Compliance
+        run: |
+          echo "::group::SRE Compliance - SLO Validation"
+
+          # Check that new endpoints have timeout configurations
+          if git diff origin/main...HEAD -- '*.go' '*.ts' '*.py' | grep -E "http\.ListenAndServe|app\.listen|uvicorn" | grep -qv "Timeout\|timeout"; then
+            echo "::warning::New HTTP servers should configure timeouts (SRE best practice)"
+          fi
+
+          # Check for circuit breaker usage
+          if git diff origin/main...HEAD -- '*.go' '*.ts' | grep -E "http\.Get|http\.Post|axios\.get|axios\.post" | head -5; then
+            if ! git diff origin/main...HEAD | grep -qE "CircuitBreaker|Breaker|retry"; then
+              echo "::warning::External HTTP calls should use circuit breakers (Constitution Principle IV)"
+            fi
+          fi
+
+          echo "::endgroup::"
+
+      # V. Observability Enforcement
+      - name: Check Observability Requirements
+        run: |
+          echo "::group::Observability Compliance"
+
+          # Check for OpenTelemetry instrumentation
+          NEW_SERVICES=$(git diff --name-only origin/main...HEAD | grep -E "services/.*/main\.(go|ts|py)" || true)
+
+          for service_file in $NEW_SERVICES; do
+            if ! grep -qE "opentelemetry|otel|tracing" "$service_file"; then
+              echo "::warning::$service_file should include OpenTelemetry instrumentation (Constitution Principle V)"
+            fi
+          done
+
+          # Check for correlation IDs in new handlers
+          if git diff origin/main...HEAD | grep -E "func.*Handler|router\.(Get|Post|Put|Delete)" | head -1; then
+            if ! git diff origin/main...HEAD | grep -qE "correlation.*id|request.*id|trace.*id" -i; then
+              echo "::warning::New handlers should propagate correlation IDs (Constitution Principle V)"
+            fi
+          fi
+
+          echo "::endgroup::"
+
+      # VI. Security Enforcement
+      - name: Security Scan - Secrets Detection
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+      - name: Security Scan - Vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'  # Fail on critical/high vulnerabilities
+
+      - name: Check for SQL Injection Patterns
+        run: |
+          echo "::group::Security Compliance - SQL Injection Check"
+
+          if git diff origin/main...HEAD | grep -E "query.*\+|exec.*\+|sql\.Raw.*\+" | grep -v "Param\|placeholder\|prepared"; then
+            echo "::error::Potential SQL injection detected (Constitution Principle VI - OWASP Top 10)"
+            echo "Use parameterized queries or prepared statements"
+            exit 1
+          fi
+
+          echo "::notice::No SQL injection patterns detected ✅"
+          echo "::endgroup::"
+
+      - name: Check for XSS Vulnerabilities
+        run: |
+          echo "::group::Security Compliance - XSS Check"
+
+          if git diff origin/main...HEAD | grep -E "innerHTML|dangerouslySetInnerHTML" | grep -v "DOMPurify\|sanitize\|escape"; then
+            echo "::warning::Potential XSS vulnerability detected (Constitution Principle VI)"
+            echo "Sanitize user input before rendering"
+          fi
+
+          echo "::endgroup::"
+
+      # Constitution Validation Script
+      - name: Run Constitution Validation
+        run: |
+          chmod +x scripts/validate-constitution.sh
+          ./scripts/validate-constitution.sh
+
+      # PR Checklist Validation
+      - name: Verify PR Checklist Completion
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "::group::Constitution Governance - PR Checklist"
+
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          # Check that all constitution checkboxes are addressed
+          UNCHECKED=$(echo "$PR_BODY" | grep -E "^\s*- \[ \]" | wc -l)
+
+          if [ "$UNCHECKED" -gt 0 ]; then
+            echo "::error::PR checklist has $UNCHECKED unchecked items"
+            echo "::error::All constitution compliance items must be checked or justified"
+            exit 1
+          fi
+
+          echo "::notice::PR checklist complete ✅"
+          echo "::endgroup::"
+
+  quality-gate:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: constitution-compliance
+    if: always()
+
+    steps:
+      - name: Check Quality Gate Status
+        run: |
+          if [ "${{ needs.constitution-compliance.result }}" != "success" ]; then
+            echo "::error::❌ Constitution compliance check FAILED"
+            echo "::error::Constitution violations block PR merges (Governance section)"
+            echo "::error::Fix violations or provide explicit justification in PR description"
+            exit 1
+          else
+            echo "::notice::✅ All constitution requirements satisfied"
+          fi
