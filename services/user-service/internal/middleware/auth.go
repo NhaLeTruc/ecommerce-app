@@ -23,25 +23,35 @@ func NewAuthMiddleware(jwtService *auth.JWTService, logger *zap.Logger) *AuthMid
 	}
 }
 
-// Authenticate validates JWT token from Authorization header
+// Authenticate validates JWT token from Authorization header or cookie
 func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var token string
+
+		// Try to get token from Authorization header first
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		if authHeader != "" {
+			// Extract token from "Bearer <token>"
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token = parts[1]
+			}
+		}
+
+		// If no token in header, try to get from cookie
+		if token == "" {
+			cookieToken, err := c.Cookie("auth_token")
+			if err == nil && cookieToken != "" {
+				token = cookieToken
+			}
+		}
+
+		// If still no token, return unauthorized
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
 			c.Abort()
 			return
 		}
-
-		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
-			c.Abort()
-			return
-		}
-
-		token := parts[1]
 		claims, err := m.jwtService.ValidateToken(token)
 		if err != nil {
 			m.logger.Warn("Invalid token", zap.Error(err))

@@ -1,40 +1,29 @@
 import axios from 'axios';
 
+// Create axios instances with credentials enabled for cookie-based auth
 const catalogApi = axios.create({
   baseURL: process.env.CATALOG_SERVICE_URL || 'http://localhost:8000',
   timeout: 10000,
+  withCredentials: true, // Send cookies with requests
 });
 
 const cartApi = axios.create({
   baseURL: process.env.CART_SERVICE_URL || 'http://localhost:3000',
   timeout: 10000,
+  withCredentials: true, // Send cookies with requests
 });
 
 const orderApi = axios.create({
   baseURL: process.env.ORDER_SERVICE_URL || 'http://localhost:3001',
   timeout: 10000,
+  withCredentials: true, // Send cookies with requests
 });
 
 const authApi = axios.create({
   baseURL: process.env.USER_SERVICE_URL || 'http://localhost:8084',
   timeout: 10000,
+  withCredentials: true, // Send cookies with requests
 });
-
-// Add auth token to all requests if available
-const addAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      catalogApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      cartApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      orderApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      authApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
-  }
-};
-
-// Initialize auth token
-addAuthToken();
 
 export interface Product {
   id: string;
@@ -144,11 +133,11 @@ export const catalogService = {
   },
 };
 
-// Cart API
+// Cart API (now uses authenticated user from cookie)
 export const cartService = {
-  async getCart(userId: string) {
+  async getCart() {
     try {
-      const response = await cartApi.get(`/api/v1/cart/${userId}`);
+      const response = await cartApi.get(`/api/v1/cart`);
       return response.data.cart;
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -158,25 +147,25 @@ export const cartService = {
     }
   },
 
-  async addToCart(userId: string, item: Omit<CartItem, 'quantity'> & { quantity: number }) {
-    const response = await cartApi.post(`/api/v1/cart/${userId}/items`, item);
+  async addToCart(item: Omit<CartItem, 'quantity'> & { quantity: number }) {
+    const response = await cartApi.post(`/api/v1/cart/items`, item);
     return response.data.cart;
   },
 
-  async updateQuantity(userId: string, productId: string, quantity: number) {
-    const response = await cartApi.put(`/api/v1/cart/${userId}/items/${productId}`, {
+  async updateQuantity(productId: string, quantity: number) {
+    const response = await cartApi.put(`/api/v1/cart/items/${productId}`, {
       quantity,
     });
     return response.data.cart;
   },
 
-  async removeItem(userId: string, productId: string) {
-    const response = await cartApi.delete(`/api/v1/cart/${userId}/items/${productId}`);
+  async removeItem(productId: string) {
+    const response = await cartApi.delete(`/api/v1/cart/items/${productId}`);
     return response.data.cart;
   },
 
-  async clearCart(userId: string) {
-    await cartApi.delete(`/api/v1/cart/${userId}`);
+  async clearCart() {
+    await cartApi.delete(`/api/v1/cart`);
   },
 };
 
@@ -249,49 +238,28 @@ export interface LoginResponse {
 }
 
 export const authService = {
-  async register(data: RegisterRequest): Promise<LoginResponse> {
+  async register(data: RegisterRequest): Promise<{ user: User }> {
     const response = await authApi.post('/api/v1/auth/register', data);
-    const { token, user } = response.data;
-
-    // Store token in localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-    }
-
-    // Add token to future requests
-    addAuthToken();
-
+    // Token is now set as httpOnly cookie by the server
+    // Only user data is returned in response
     return response.data;
   },
 
-  async login(data: LoginRequest): Promise<LoginResponse> {
+  async login(data: LoginRequest): Promise<{ user: User }> {
     const response = await authApi.post('/api/v1/auth/login', data);
-    const { token, user } = response.data;
-
-    // Store token in localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-    }
-
-    // Add token to future requests
-    addAuthToken();
-
+    // Token is now set as httpOnly cookie by the server
+    // Only user data is returned in response
     return response.data;
   },
 
-  logout() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
+  async logout(): Promise<void> {
+    try {
+      await authApi.post('/api/v1/auth/logout');
+      // Cookie is cleared by the server
+    } catch (error) {
+      // Even if logout fails on server, we still consider the user logged out
+      console.error('Logout error:', error);
     }
-
-    // Remove auth headers
-    delete catalogApi.defaults.headers.common['Authorization'];
-    delete cartApi.defaults.headers.common['Authorization'];
-    delete orderApi.defaults.headers.common['Authorization'];
-    delete authApi.defaults.headers.common['Authorization'];
   },
 
   async getProfile(): Promise<User> {
@@ -301,12 +269,6 @@ export const authService = {
 
   async updateProfile(data: { first_name?: string; last_name?: string; phone?: string }): Promise<User> {
     const response = await authApi.put('/api/v1/users/profile', data);
-
-    // Update user in localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('user', JSON.stringify(response.data));
-    }
-
     return response.data;
   },
 
@@ -317,24 +279,13 @@ export const authService = {
     });
   },
 
-  getCurrentUser(): User | null {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('user');
-      if (userStr) {
-        try {
-          return JSON.parse(userStr);
-        } catch {
-          return null;
-        }
-      }
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      // Try to fetch profile - if successful, user is authenticated
+      await this.getProfile();
+      return true;
+    } catch (error) {
+      return false;
     }
-    return null;
-  },
-
-  isAuthenticated(): boolean {
-    if (typeof window !== 'undefined') {
-      return !!localStorage.getItem('auth_token');
-    }
-    return false;
   },
 };

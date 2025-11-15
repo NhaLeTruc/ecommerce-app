@@ -2,14 +2,18 @@ import { Router, Request, Response } from 'express';
 import { CartService } from '../services/cartService';
 import { AddToCartRequest, UpdateCartItemRequest } from '../models/cart';
 import { logger } from '../middleware/logger';
+import { authenticateJWT } from '../middleware/auth';
 
 export function createCartRoutes(cartService: CartService): Router {
   const router = Router();
 
-  // Get cart
-  router.get('/:userId', async (req: Request, res: Response) => {
+  // Apply authentication to all cart routes
+  router.use(authenticateJWT);
+
+  // Get cart (authenticated user's cart only)
+  router.get('/', async (req: Request, res: Response) => {
     try {
-      const { userId } = req.params;
+      const userId = req.user!.user_id;
       const cart = await cartService.getCart(userId);
 
       if (!cart) {
@@ -24,9 +28,9 @@ export function createCartRoutes(cartService: CartService): Router {
   });
 
   // Add item to cart
-  router.post('/:userId/items', async (req: Request, res: Response) => {
+  router.post('/items', async (req: Request, res: Response) => {
     try {
-      const { userId } = req.params;
+      const userId = req.user!.user_id;
       const item: AddToCartRequest = req.body;
 
       // Validate request
@@ -52,9 +56,10 @@ export function createCartRoutes(cartService: CartService): Router {
   });
 
   // Update item quantity
-  router.put('/:userId/items/:productId', async (req: Request, res: Response) => {
+  router.put('/items/:productId', async (req: Request, res: Response) => {
     try {
-      const { userId, productId } = req.params;
+      const userId = req.user!.user_id;
+      const { productId } = req.params;
       const { quantity }: UpdateCartItemRequest = req.body;
 
       if (quantity === undefined) {
@@ -79,9 +84,10 @@ export function createCartRoutes(cartService: CartService): Router {
   });
 
   // Remove item from cart
-  router.delete('/:userId/items/:productId', async (req: Request, res: Response) => {
+  router.delete('/items/:productId', async (req: Request, res: Response) => {
     try {
-      const { userId, productId } = req.params;
+      const userId = req.user!.user_id;
+      const { productId } = req.params;
       const cart = await cartService.removeItem(userId, productId);
       res.json({ cart });
     } catch (error: any) {
@@ -96,9 +102,9 @@ export function createCartRoutes(cartService: CartService): Router {
   });
 
   // Clear cart
-  router.delete('/:userId', async (req: Request, res: Response) => {
+  router.delete('/', async (req: Request, res: Response) => {
     try {
-      const { userId } = req.params;
+      const userId = req.user!.user_id;
       await cartService.clearCart(userId);
       res.status(204).send();
     } catch (error) {

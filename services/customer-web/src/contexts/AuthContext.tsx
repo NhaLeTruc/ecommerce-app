@@ -16,7 +16,7 @@ interface AuthContextType {
     last_name: string;
     phone?: string;
   }) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -27,12 +27,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Load user on mount
+  // Load user on mount by fetching profile (cookie-based auth)
   useEffect(() => {
-    const loadUser = () => {
-      const currentUser = authService.getCurrentUser();
-      setUser(currentUser);
-      setIsLoading(false);
+    const loadUser = async () => {
+      try {
+        const profile = await authService.getProfile();
+        setUser(profile);
+      } catch (error) {
+        // Not authenticated or session expired
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadUser();
@@ -54,8 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
   };
 
-  const logout = () => {
-    authService.logout();
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
     router.push('/');
   };
@@ -64,14 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const updatedUser = await authService.getProfile();
       setUser(updatedUser);
-      // Update localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      }
     } catch (error) {
       console.error('Failed to refresh user:', error);
       // If refresh fails, user might be logged out
-      logout();
+      await logout();
     }
   };
 
