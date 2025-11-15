@@ -15,6 +15,27 @@ const orderApi = axios.create({
   timeout: 10000,
 });
 
+const authApi = axios.create({
+  baseURL: process.env.USER_SERVICE_URL || 'http://localhost:8084',
+  timeout: 10000,
+});
+
+// Add auth token to all requests if available
+const addAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      catalogApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      cartApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      orderApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      authApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+  }
+};
+
+// Initialize auth token
+addAuthToken();
+
 export interface Product {
   id: string;
   sku: string;
@@ -186,5 +207,134 @@ export const orderService = {
   async cancelOrder(orderId: string) {
     const response = await orderApi.post(`/api/v1/orders/${orderId}/cancel`);
     return response.data.order;
+  },
+
+  async getAllOrders(limit = 20, skip = 0, status?: string) {
+    const response = await orderApi.get('/api/v1/orders', {
+      params: { limit, skip, status },
+    });
+    return response.data;
+  },
+};
+
+// User Auth API
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role: 'customer' | 'admin';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+export const authService = {
+  async register(data: RegisterRequest): Promise<LoginResponse> {
+    const response = await authApi.post('/api/v1/auth/register', data);
+    const { token, user } = response.data;
+
+    // Store token in localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    // Add token to future requests
+    addAuthToken();
+
+    return response.data;
+  },
+
+  async login(data: LoginRequest): Promise<LoginResponse> {
+    const response = await authApi.post('/api/v1/auth/login', data);
+    const { token, user } = response.data;
+
+    // Store token in localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    // Add token to future requests
+    addAuthToken();
+
+    return response.data;
+  },
+
+  logout() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+    }
+
+    // Remove auth headers
+    delete catalogApi.defaults.headers.common['Authorization'];
+    delete cartApi.defaults.headers.common['Authorization'];
+    delete orderApi.defaults.headers.common['Authorization'];
+    delete authApi.defaults.headers.common['Authorization'];
+  },
+
+  async getProfile(): Promise<User> {
+    const response = await authApi.get('/api/v1/users/profile');
+    return response.data;
+  },
+
+  async updateProfile(data: { first_name?: string; last_name?: string; phone?: string }): Promise<User> {
+    const response = await authApi.put('/api/v1/users/profile', data);
+
+    // Update user in localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+
+    return response.data;
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await authApi.post('/api/v1/users/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
+
+  getCurrentUser(): User | null {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          return JSON.parse(userStr);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  },
+
+  isAuthenticated(): boolean {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('auth_token');
+    }
+    return false;
   },
 };
