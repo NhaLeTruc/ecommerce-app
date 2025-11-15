@@ -1,0 +1,113 @@
+{
+  "schema_registry": {
+    "url": "http://schema-registry:8081",
+    "schemas": [
+      {
+        "subject": "order-events-value",
+        "schema": {
+          "type": "record",
+          "name": "OrderEvent",
+          "namespace": "com.ecommerce.events",
+          "fields": [
+            {"name": "order_id", "type": "string"},
+            {"name": "user_id", "type": "string"},
+            {"name": "event_type", "type": {"type": "enum", "name": "OrderEventType", "symbols": ["CREATED", "CONFIRMED", "PAID", "FULFILLED", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]}},
+            {"name": "order_number", "type": "string"},
+            {"name": "total_amount", "type": "double"},
+            {"name": "currency", "type": "string", "default": "USD"},
+            {"name": "items", "type": {"type": "array", "items": {
+              "type": "record",
+              "name": "OrderItem",
+              "fields": [
+                {"name": "sku", "type": "string"},
+                {"name": "quantity", "type": "int"},
+                {"name": "price", "type": "double"}
+              ]
+            }}},
+            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
+            {"name": "correlation_id", "type": "string"},
+            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+          ]
+        }
+      },
+      {
+        "subject": "inventory-events-value",
+        "schema": {
+          "type": "record",
+          "name": "InventoryEvent",
+          "namespace": "com.ecommerce.events",
+          "fields": [
+            {"name": "sku", "type": "string"},
+            {"name": "event_type", "type": {"type": "enum", "name": "InventoryEventType", "symbols": ["RESERVED", "RELEASED", "RESTOCKED", "UPDATED", "DEPLETED"]}},
+            {"name": "quantity_before", "type": "int"},
+            {"name": "quantity_after", "type": "int"},
+            {"name": "quantity_change", "type": "int"},
+            {"name": "reservation_id", "type": ["null", "string"], "default": null},
+            {"name": "warehouse_location", "type": "string"},
+            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
+            {"name": "correlation_id", "type": "string"},
+            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+          ]
+        }
+      },
+      {
+        "subject": "payment-events-value",
+        "schema": {
+          "type": "record",
+          "name": "PaymentEvent",
+          "namespace": "com.ecommerce.events",
+          "fields": [
+            {"name": "payment_id", "type": "string"},
+            {"name": "order_id", "type": "string"},
+            {"name": "event_type", "type": {"type": "enum", "name": "PaymentEventType", "symbols": ["INITIATED", "AUTHORIZED", "CAPTURED", "COMPLETED", "FAILED", "REFUNDED", "DISPUTED"]}},
+            {"name": "amount", "type": "double"},
+            {"name": "currency", "type": "string", "default": "USD"},
+            {"name": "payment_method", "type": "string"},
+            {"name": "status", "type": "string"},
+            {"name": "gateway_response", "type": ["null", "string"], "default": null},
+            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
+            {"name": "correlation_id", "type": "string"},
+            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+          ]
+        }
+      },
+      {
+        "subject": "product-events-value",
+        "schema": {
+          "type": "record",
+          "name": "ProductEvent",
+          "namespace": "com.ecommerce.events",
+          "fields": [
+            {"name": "sku", "type": "string"},
+            {"name": "event_type", "type": {"type": "enum", "name": "ProductEventType", "symbols": ["CREATED", "UPDATED", "PRICE_CHANGED", "DELETED", "OUT_OF_STOCK", "BACK_IN_STOCK"]}},
+            {"name": "name", "type": "string"},
+            {"name": "price", "type": "double"},
+            {"name": "old_price", "type": ["null", "double"], "default": null},
+            {"name": "category", "type": "string"},
+            {"name": "in_stock", "type": "boolean"},
+            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
+            {"name": "correlation_id", "type": "string"},
+            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+          ]
+        }
+      },
+      {
+        "subject": "user-events-value",
+        "schema": {
+          "type": "record",
+          "name": "UserEvent",
+          "namespace": "com.ecommerce.events",
+          "fields": [
+            {"name": "user_id", "type": "string"},
+            {"name": "event_type", "type": {"type": "enum", "name": "UserEventType", "symbols": ["REGISTERED", "UPDATED", "LOGGED_IN", "LOGGED_OUT", "PASSWORD_CHANGED", "EMAIL_VERIFIED", "DELETED"]}},
+            {"name": "email", "type": "string"},
+            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
+            {"name": "ip_address", "type": ["null", "string"], "default": null},
+            {"name": "correlation_id", "type": "string"},
+            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+          ]
+        }
+      }
+    ]
+  }
+}

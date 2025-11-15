@@ -1,0 +1,98 @@
+# Jaeger Configuration
+# Distributed tracing backend for ecommerce microservices
+
+# Sampling configuration
+sampling:
+  default_strategy:
+    type: probabilistic
+    param: 1.0  # Sample 100% of traces in development
+
+  # Service-specific sampling strategies
+  per_operation_strategies:
+    default_sampling_probability: 1.0
+    default_lower_bound_traces_per_second: 1.0
+
+    # Critical services - always sample
+    - service: checkout-service
+      type: probabilistic
+      param: 1.0
+
+    - service: payment-service
+      type: probabilistic
+      param: 1.0
+
+    # High-traffic services - adaptive sampling
+    - service: catalog-service
+      type: ratelimiting
+      param: 100  # max 100 traces/second
+
+    - service: cart-service
+      type: ratelimiting
+      param: 100
+
+# Storage configuration
+storage:
+  type: badger  # Use badger for development (filesystem)
+
+  # For production, use Elasticsearch/OpenSearch:
+  # type: elasticsearch
+  # options:
+  #   es:
+  #     server-urls: http://opensearch:9200
+  #     index-prefix: jaeger
+  #     username: admin
+  #     password: admin
+
+# Query service configuration
+query:
+  base-path: /
+  static-files: /go/jaeger-ui/
+  ui-config: /etc/jaeger/ui-config.json
+
+  # Max trace lookback
+  max-clock-skew-adjustment: 0s
+
+  # GRPC server
+  grpc-server:
+    host-port: :16685
+
+# Collector configuration
+collector:
+  # HTTP server
+  http-server:
+    host-port: :14268
+
+  # GRPC server
+  grpc-server:
+    host-port: :14250
+
+  # Zipkin compatibility
+  zipkin:
+    host-port: :9411
+
+  # Queue configuration
+  queue:
+    num-workers: 50
+    queue-size: 2000
+
+# Agent configuration
+agent:
+  # Jaeger compact thrift protocol
+  processor:
+    jaeger-compact:
+      server-host-port: :6831
+      server-max-packet-size: 65000
+
+    # Jaeger binary thrift protocol
+    jaeger-binary:
+      server-host-port: :6832
+      server-max-packet-size: 65000
+
+# Metrics configuration
+metrics:
+  backend: prometheus
+  http-route: /metrics
+  http-port: 14269
+
+# Logging
+log-level: info

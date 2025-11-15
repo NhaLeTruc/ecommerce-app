@@ -1,0 +1,284 @@
+{
+  "dashboard": {
+    "title": "Ecommerce - SLO Dashboard",
+    "tags": ["ecommerce", "slo", "sre", "error-budget"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "1m",
+    "time": {
+      "from": "now-30d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Checkout Service - Availability SLO (99.9%)",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{service=\"checkout-service\",status!~\"5..\"}[30d])) / sum(rate(http_requests_total{service=\"checkout-service\"}[30d]))) * 100",
+            "legendFormat": "Availability"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 3,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 99.9, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Checkout Service - Error Budget Remaining",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "((sum(rate(http_requests_total{service=\"checkout-service\"}[30d])) * 0.001) - sum(rate(http_requests_total{service=\"checkout-service\",status=~\"5..\"}[30d]))) / (sum(rate(http_requests_total{service=\"checkout-service\"}[30d])) * 0.001) * 100",
+            "legendFormat": "Error Budget"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 25, "color": "yellow"},
+                {"value": 50, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Browse Service - Availability SLO (99.95%)",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{service=\"catalog-service\",status!~\"5..\"}[30d])) / sum(rate(http_requests_total{service=\"catalog-service\"}[30d]))) * 100",
+            "legendFormat": "Availability"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 3,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 99.95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Browse Service - Error Budget Remaining",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "((sum(rate(http_requests_total{service=\"catalog-service\"}[30d])) * 0.0005) - sum(rate(http_requests_total{service=\"catalog-service\",status=~\"5..\"}[30d]))) / (sum(rate(http_requests_total{service=\"catalog-service\"}[30d])) * 0.0005) * 100",
+            "legendFormat": "Error Budget"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 25, "color": "yellow"},
+                {"value": 50, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Product Pages - P95 Latency SLO (<300ms)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"catalog-service\",endpoint=\"/products\"}[5m]))) * 1000",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 300, "color": "red"}
+              ]
+            }
+          }
+        },
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [300], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "name": "Product Page Latency SLO Violation"
+        }
+      },
+      {
+        "id": 6,
+        "title": "Checkout Flow - P95 Latency SLO (<500ms)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout-service\"}[5m]))) * 1000",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 500, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Payment Processing - Error Rate SLO (<0.1%)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{service=\"payment-service\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"payment-service\"}[5m]))) * 100",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.1, "color": "red"}
+              ]
+            }
+          }
+        },
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.1], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "name": "Payment Error Rate SLO Violation",
+          "frequency": "1m"
+        }
+      },
+      {
+        "id": 8,
+        "title": "SLO Compliance Summary (30 days)",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+        "targets": [
+          {
+            "expr": "slo_compliance{period=\"30d\"}",
+            "legendFormat": "{{service}} - {{slo_type}}",
+            "format": "table",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Error Budget Burn Rate (Last 1h vs Last 24h)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+        "targets": [
+          {
+            "expr": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1h])) / sum by (service) (rate(http_requests_total[1h]))",
+            "legendFormat": "{{service}} (1h burn)"
+          },
+          {
+            "expr": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[24h])) / sum by (service) (rate(http_requests_total[24h]))",
+            "legendFormat": "{{service}} (24h burn)"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "SLO Violations This Month",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 30},
+        "targets": [
+          {
+            "expr": "sum(increase(slo_violations_total[30d]))",
+            "legendFormat": "Total Violations"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Time Until Error Budget Exhausted",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 30},
+        "targets": [
+          {
+            "expr": "predict_linear(error_budget_remaining[1h], 3600*24*7)",
+            "legendFormat": "Days Remaining"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "days"
+          }
+        }
+      }
+    ]
+  }
+}
