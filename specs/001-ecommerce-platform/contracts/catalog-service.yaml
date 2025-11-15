@@ -1,0 +1,609 @@
+openapi: 3.0.3
+info:
+  title: Catalog Service API
+  description: Product catalog management and search service
+  version: 1.0.0
+  contact:
+    name: Ecommerce Platform Team
+servers:
+  - url: http://localhost:8001/api/v1
+    description: Development
+  - url: https://api.ecommerce.example.com/catalog/v1
+    description: Production
+
+tags:
+  - name: Products
+    description: Product management endpoints
+  - name: Categories
+    description: Category management endpoints
+  - name: Search
+    description: Product search endpoints
+
+paths:
+  /products:
+    get:
+      tags: [Products]
+      summary: List products
+      description: Retrieve paginated list of products with optional filtering
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: category
+          in: query
+          description: Filter by category slug
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, ACTIVE, ARCHIVED, OUT_OF_STOCK]
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, price, name]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Products]
+      summary: Create product
+      description: Create a new product (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /products/{id}:
+    get:
+      tags: [Products]
+      summary: Get product by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Products]
+      summary: Update product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /products/sku/{sku}:
+    get:
+      tags: [Products]
+      summary: Get product by SKU
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z0-9-]{6,20}$'
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Search products
+      description: Full-text search with faceted filtering
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: filters
+          in: query
+          description: Faceted filters (comma-separated key:value pairs)
+          schema:
+            type: string
+          example: "category:laptops,brand:Apple,price:500-1000"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductSearchResult'
+                  facets:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            count:
+                              type: integer
+                      brands:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            count:
+                              type: integer
+                      priceRanges:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            min:
+                              type: number
+                            max:
+                              type: number
+                            count:
+                              type: integer
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - sku
+        - name
+        - slug
+        - price
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        sku:
+          type: string
+          pattern: '^[A-Z0-9-]{6,20}$'
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        longDescription:
+          type: string
+        category:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            path:
+              type: array
+              items:
+                type: string
+        brand:
+          type: string
+        price:
+          type: object
+          properties:
+            amount:
+              type: string
+              pattern: '^\d+\.\d{2}$'
+            currency:
+              type: string
+              pattern: '^[A-Z]{3}$'
+            compareAtPrice:
+              type: string
+              pattern: '^\d+\.\d{2}$'
+              nullable: true
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              alt:
+                type: string
+              isPrimary:
+                type: boolean
+              order:
+                type: integer
+        attributes:
+          type: object
+          additionalProperties: true
+        variants:
+          type: array
+          items:
+            type: object
+            properties:
+              sku:
+                type: string
+              name:
+                type: string
+              price:
+                type: string
+              attributes:
+                type: object
+              inventoryId:
+                type: string
+                format: uuid
+        searchKeywords:
+          type: array
+          items:
+            type: string
+        seo:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            keywords:
+              type: array
+              items:
+                type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, ARCHIVED, OUT_OF_STOCK]
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+
+    ProductCreate:
+      type: object
+      required:
+        - sku
+        - name
+        - slug
+        - price
+      properties:
+        sku:
+          type: string
+          pattern: '^[A-Z0-9-]{6,20}$'
+        name:
+          type: string
+          maxLength: 200
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+        description:
+          type: string
+        longDescription:
+          type: string
+        categoryId:
+          type: string
+        brand:
+          type: string
+        price:
+          type: object
+          required:
+            - amount
+            - currency
+          properties:
+            amount:
+              type: string
+              pattern: '^\d+\.\d{2}$'
+            currency:
+              type: string
+              pattern: '^[A-Z]{3}$'
+              default: USD
+        images:
+          type: array
+          items:
+            type: object
+            required:
+              - url
+              - alt
+            properties:
+              url:
+                type: string
+                format: uri
+              alt:
+                type: string
+              isPrimary:
+                type: boolean
+                default: false
+              order:
+                type: integer
+        attributes:
+          type: object
+          additionalProperties: true
+        searchKeywords:
+          type: array
+          items:
+            type: string
+        seo:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            keywords:
+              type: array
+              items:
+                type: string
+
+    ProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: object
+          properties:
+            amount:
+              type: string
+            currency:
+              type: string
+        images:
+          type: array
+          items:
+            type: object
+        attributes:
+          type: object
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, ARCHIVED, OUT_OF_STOCK]
+        version:
+          type: integer
+          description: Optimistic locking version
+
+    ProductSearchResult:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            score:
+              type: number
+              description: Search relevance score
+            highlights:
+              type: object
+              description: Highlighted search terms in name/description
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        traceId:
+          type: string
+          description: Correlation ID for distributed tracing
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: BAD_REQUEST
+            message: Invalid request parameters
+            details:
+              sku: "SKU must match pattern [A-Z0-9-]{6,20}"
+            traceId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Authentication required
+            traceId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: FORBIDDEN
+            message: Insufficient permissions
+            traceId: "550e8400-e29b-41d4-a716-446655440000"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Product not found
+            traceId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: CONFLICT
+            message: Product version mismatch (optimistic locking)
+            details:
+              currentVersion: 5
+              providedVersion: 3
+            traceId: "550e8400-e29b-41d4-a716-446655440000"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_ERROR
+            message: An unexpected error occurred
+            traceId: "550e8400-e29b-41d4-a716-446655440000"
