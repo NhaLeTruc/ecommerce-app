@@ -1,0 +1,304 @@
+# Prometheus Configuration
+# Scrapes metrics from all ecommerce services and infrastructure
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ecommerce-dev'
+    environment: 'development'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts/*.yml"
+  - "recording_rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          tier: 'infrastructure'
+
+  # OpenTelemetry Collector
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888', 'otel-collector:8889']
+        labels:
+          service: 'otel-collector'
+          tier: 'infrastructure'
+
+  # ==========================================================================
+  # Microservices - Go Services
+  # ==========================================================================
+
+  - job_name: 'checkout-service'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['checkout-service:9100']
+        labels:
+          service: 'checkout-service'
+          language: 'go'
+          tier: 'backend'
+          critical: 'true'  # High priority service
+    metric_relabel_configs:
+      # Drop high cardinality metrics
+      - source_labels: [__name__]
+        regex: 'go_gc_.*'
+        action: drop
+
+  - job_name: 'payment-service'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['payment-service:9100']
+        labels:
+          service: 'payment-service'
+          language: 'go'
+          tier: 'backend'
+          critical: 'true'
+          pci_compliant: 'true'
+
+  - job_name: 'inventory-service'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['inventory-service:9100']
+        labels:
+          service: 'inventory-service'
+          language: 'go'
+          tier: 'backend'
+
+  - job_name: 'orders-service'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['orders-service:9100']
+        labels:
+          service: 'orders-service'
+          language: 'go'
+          tier: 'backend'
+
+  # ==========================================================================
+  # Microservices - Node.js/TypeScript Services
+  # ==========================================================================
+
+  - job_name: 'cart-service'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['cart-service:9100']
+        labels:
+          service: 'cart-service'
+          language: 'nodejs'
+          tier: 'backend'
+
+  - job_name: 'api-gateway'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['api-gateway:9100']
+        labels:
+          service: 'api-gateway'
+          language: 'nodejs'
+          tier: 'gateway'
+          critical: 'true'
+
+  - job_name: 'fulfillment-service'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['fulfillment-service:9100']
+        labels:
+          service: 'fulfillment-service'
+          language: 'nodejs'
+          tier: 'backend'
+
+  - job_name: 'accounts-service'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['accounts-service:9100']
+        labels:
+          service: 'accounts-service'
+          language: 'nodejs'
+          tier: 'backend'
+          critical: 'true'
+
+  # ==========================================================================
+  # Microservices - Python Services
+  # ==========================================================================
+
+  - job_name: 'catalog-service'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['catalog-service:9100']
+        labels:
+          service: 'catalog-service'
+          language: 'python'
+          tier: 'backend'
+
+  - job_name: 'recommendations-service'
+    scrape_interval: 30s  # ML service, less frequent scraping
+    static_configs:
+      - targets: ['recommendations-service:9100']
+        labels:
+          service: 'recommendations-service'
+          language: 'python'
+          tier: 'ml'
+
+  # ==========================================================================
+  # Frontend Applications
+  # ==========================================================================
+
+  - job_name: 'customer-web'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['customer-web:9100']
+        labels:
+          service: 'customer-web'
+          language: 'nodejs'
+          tier: 'frontend'
+          critical: 'true'
+
+  - job_name: 'admin-dashboard'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['admin-dashboard:9100']
+        labels:
+          service: 'admin-dashboard'
+          language: 'nodejs'
+          tier: 'frontend'
+
+  # ==========================================================================
+  # Infrastructure - Databases
+  # ==========================================================================
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+          tier: 'database'
+          critical: 'true'
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+        labels:
+          service: 'mongodb'
+          tier: 'database'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          tier: 'cache'
+          critical: 'true'
+
+  - job_name: 'opensearch'
+    static_configs:
+      - targets: ['opensearch:9200']
+        labels:
+          service: 'opensearch'
+          tier: 'search'
+    metrics_path: '/_prometheus/metrics'
+
+  # ==========================================================================
+  # Infrastructure - Message Queues
+  # ==========================================================================
+
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+        labels:
+          service: 'kafka'
+          tier: 'messaging'
+          critical: 'true'
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'
+          tier: 'messaging'
+    metrics_path: '/metrics'
+
+  # ==========================================================================
+  # Infrastructure - API Gateway
+  # ==========================================================================
+
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['kong:8001']
+        labels:
+          service: 'kong'
+          tier: 'gateway'
+          critical: 'true'
+    metrics_path: '/metrics'
+
+  # ==========================================================================
+  # Infrastructure - Observability
+  # ==========================================================================
+
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: 'grafana'
+          tier: 'observability'
+    metrics_path: '/metrics'
+
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+        labels:
+          service: 'jaeger'
+          tier: 'observability'
+    metrics_path: '/metrics'
+
+  # ==========================================================================
+  # Service Discovery - Kubernetes (when deployed)
+  # ==========================================================================
+
+  # - job_name: 'kubernetes-pods'
+  #   kubernetes_sd_configs:
+  #     - role: pod
+  #   relabel_configs:
+  #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+  #       action: keep
+  #       regex: true
+  #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+  #       action: replace
+  #       target_label: __metrics_path__
+  #       regex: (.+)
+  #     - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+  #       action: replace
+  #       regex: ([^:]+)(?::\d+)?;(\d+)
+  #       replacement: $1:$2
+  #       target_label: __address__
+  #     - action: labelmap
+  #       regex: __meta_kubernetes_pod_label_(.+)
+  #     - source_labels: [__meta_kubernetes_namespace]
+  #       action: replace
+  #       target_label: kubernetes_namespace
+  #     - source_labels: [__meta_kubernetes_pod_name]
+  #       action: replace
+  #       target_label: kubernetes_pod_name
+
+# Remote write configuration (for long-term storage)
+# remote_write:
+#   - url: http://cortex:9009/api/prom/push
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 50
+#       min_shards: 1
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
+#       min_backoff: 30ms
+#       max_backoff: 100ms

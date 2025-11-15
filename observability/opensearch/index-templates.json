@@ -1,0 +1,228 @@
+{
+  "index_templates": [
+    {
+      "name": "ecommerce-logs-template",
+      "index_patterns": ["ecommerce-logs-*", "ecommerce-*"],
+      "template": {
+        "settings": {
+          "number_of_shards": 3,
+          "number_of_replicas": 1,
+          "index": {
+            "refresh_interval": "5s",
+            "max_result_window": 10000
+          }
+        },
+        "mappings": {
+          "properties": {
+            "@timestamp": {
+              "type": "date"
+            },
+            "timestamp": {
+              "type": "date"
+            },
+            "service_name": {
+              "type": "keyword"
+            },
+            "severity": {
+              "type": "keyword"
+            },
+            "level": {
+              "type": "keyword"
+            },
+            "message": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "correlation_id": {
+              "type": "keyword"
+            },
+            "trace_id": {
+              "type": "keyword"
+            },
+            "span_id": {
+              "type": "keyword"
+            },
+            "user_id": {
+              "type": "keyword"
+            },
+            "session_id": {
+              "type": "keyword"
+            },
+            "environment": {
+              "type": "keyword"
+            },
+            "pod_name": {
+              "type": "keyword"
+            },
+            "hostname": {
+              "type": "keyword"
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "message": {"type": "text"},
+                "stack_trace": {"type": "text"},
+                "type": {"type": "keyword"}
+              }
+            },
+            "http": {
+              "type": "object",
+              "properties": {
+                "method": {"type": "keyword"},
+                "url": {"type": "keyword"},
+                "status_code": {"type": "integer"},
+                "user_agent": {"type": "text"},
+                "remote_addr": {"type": "ip"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ecommerce-products-template",
+      "index_patterns": ["products-*"],
+      "template": {
+        "settings": {
+          "number_of_shards": 5,
+          "number_of_replicas": 1,
+          "index": {
+            "refresh_interval": "1s"
+          },
+          "analysis": {
+            "analyzer": {
+              "product_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": ["lowercase", "stop", "snowball"]
+              },
+              "autocomplete_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": ["lowercase", "autocomplete_filter"]
+              }
+            },
+            "filter": {
+              "autocomplete_filter": {
+                "type": "edge_ngram",
+                "min_gram": 2,
+                "max_gram": 20
+              }
+            }
+          }
+        },
+        "mappings": {
+          "properties": {
+            "sku": {
+              "type": "keyword"
+            },
+            "name": {
+              "type": "text",
+              "analyzer": "product_analyzer",
+              "fields": {
+                "autocomplete": {
+                  "type": "text",
+                  "analyzer": "autocomplete_analyzer"
+                },
+                "keyword": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "description": {
+              "type": "text",
+              "analyzer": "product_analyzer"
+            },
+            "price": {
+              "type": "scaled_float",
+              "scaling_factor": 100
+            },
+            "category": {
+              "type": "keyword"
+            },
+            "brand": {
+              "type": "keyword"
+            },
+            "tags": {
+              "type": "keyword"
+            },
+            "in_stock": {
+              "type": "boolean"
+            },
+            "rating": {
+              "type": "half_float"
+            },
+            "review_count": {
+              "type": "integer"
+            },
+            "created_at": {
+              "type": "date"
+            },
+            "updated_at": {
+              "type": "date"
+            },
+            "specifications": {
+              "type": "object",
+              "enabled": true
+            },
+            "images": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ecommerce-traces-template",
+      "index_patterns": ["otel-traces-*"],
+      "template": {
+        "settings": {
+          "number_of_shards": 3,
+          "number_of_replicas": 1,
+          "index": {
+            "refresh_interval": "5s"
+          }
+        },
+        "mappings": {
+          "properties": {
+            "@timestamp": {
+              "type": "date"
+            },
+            "trace_id": {
+              "type": "keyword"
+            },
+            "span_id": {
+              "type": "keyword"
+            },
+            "parent_span_id": {
+              "type": "keyword"
+            },
+            "operation_name": {
+              "type": "keyword"
+            },
+            "service_name": {
+              "type": "keyword"
+            },
+            "duration_ms": {
+              "type": "long"
+            },
+            "status_code": {
+              "type": "keyword"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "logs": {
+              "type": "nested"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

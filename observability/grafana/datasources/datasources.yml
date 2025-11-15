@@ -1,0 +1,76 @@
+# Grafana Datasources Configuration
+# Auto-provisioning datasources for Ecommerce Platform
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Metrics
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 15s
+      queryTimeout: 60s
+      httpMethod: POST
+    version: 1
+
+  # Jaeger - Distributed Tracing
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
+    jsonData:
+      tracesToLogs:
+        datasourceUid: 'opensearch'
+        tags: ['trace_id']
+    version: 1
+
+  # OpenSearch - Logs
+  - name: OpenSearch
+    type: opensearch
+    access: proxy
+    url: http://opensearch:9200
+    database: otel-logs-*
+    editable: true
+    jsonData:
+      timeField: '@timestamp'
+      esVersion: '2.0.0'
+      logMessageField: message
+      logLevelField: severity
+      interval: Daily
+      timeInterval: 10s
+    version: 1
+
+  # PostgreSQL - Business Intelligence Queries
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: ecommerce
+    user: ecommerce
+    editable: true
+    secureJsonData:
+      password: dev_password
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+    version: 1
+
+  # MongoDB - Product Catalog Analytics
+  - name: MongoDB
+    type: grafana-mongodb-datasource
+    access: proxy
+    url: mongodb://mongodb:27017
+    database: catalog
+    editable: true
+    jsonData:
+      authType: credentials
+    secureJsonData:
+      user: ecommerce
+      password: dev_password
+    version: 1
