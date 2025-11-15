@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { config } from './config';
 import { getPool, closePool } from './database/pool';
 import { OrderRepository } from './database/orderRepository';
@@ -19,6 +20,7 @@ async function main() {
   app.use(cors({ origin: config.cors.origins, credentials: true }));
   app.use(compression());
   app.use(express.json());
+  app.use(cookieParser());
   app.use(correlationIdMiddleware);
 
   // Request logging

@@ -2,17 +2,24 @@ import { Router, Request, Response } from 'express';
 import { OrderService } from '../services/orderService';
 import { CreateOrderRequest, UpdateOrderStatusRequest, OrderStatus } from '../models/order';
 import { logger } from '../middleware/logger';
+import { authenticateJWT, requireAdmin } from '../middleware/auth';
 
 export function createOrderRoutes(orderService: OrderService): Router {
   const router = Router();
 
-  // Create order
+  // Apply authentication to all routes
+  router.use(authenticateJWT);
+
+  // Create order (user can only create order for themselves)
   router.post('/', async (req: Request, res: Response) => {
     try {
       const orderData: CreateOrderRequest = req.body;
 
+      // Override userId with authenticated user's ID (prevent impersonation)
+      orderData.userId = req.user!.user_id;
+
       // Validate required fields
-      if (!orderData.userId || !orderData.items || orderData.items.length === 0) {
+      if (!orderData.items || orderData.items.length === 0) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
@@ -33,11 +40,17 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Get order by ID
+  // Get order by ID (user can only get their own orders, admin can get any)
   router.get('/:orderId', async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
       const order = await orderService.getOrder(orderId);
+
+      // Verify ownership (unless admin)
+      if (req.user!.role !== 'admin' && order.userId !== req.user!.user_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
       res.json({ order });
     } catch (error: any) {
       logger.error('Failed to get order', { error: error.message });
@@ -50,10 +63,16 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Get user orders
+  // Get user orders (user can only get their own, admin can get any user's)
   router.get('/user/:userId', async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
+
+      // Verify ownership (unless admin)
+      if (req.user!.role !== 'admin' && userId !== req.user!.user_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
 
@@ -65,10 +84,17 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Process payment for order
+  // Process payment for order (user can only pay their own orders)
   router.post('/:orderId/payment', async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
+
+      // Verify ownership before processing payment
+      const order = await orderService.getOrder(orderId);
+      if (req.user!.role !== 'admin' && order.userId !== req.user!.user_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
       const paymentResponse = await orderService.processPayment(orderId);
 
       if (paymentResponse.success) {
@@ -89,8 +115,8 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Update order status
-  router.put('/:orderId/status', async (req: Request, res: Response) => {
+  // Update order status (admin only)
+  router.put('/:orderId/status', requireAdmin, async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
       const { status, notes }: UpdateOrderStatusRequest = req.body;
@@ -112,7 +138,7 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Cancel order
+  // Cancel order (user can cancel their own orders, admin can cancel any)
   router.post('/:orderId/cancel', async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
@@ -120,6 +146,12 @@ export function createOrderRoutes(orderService: OrderService): Router {
 
       if (!reason) {
         return res.status(400).json({ error: 'Cancellation reason is required' });
+      }
+
+      // Verify ownership before canceling
+      const existingOrder = await orderService.getOrder(orderId);
+      if (req.user!.role !== 'admin' && existingOrder.userId !== req.user!.user_id) {
+        return res.status(403).json({ error: 'Access denied' });
       }
 
       const order = await orderService.cancelOrder(orderId, reason);
@@ -139,8 +171,8 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Mark order as shipped
-  router.post('/:orderId/ship', async (req: Request, res: Response) => {
+  // Mark order as shipped (admin only)
+  router.post('/:orderId/ship', requireAdmin, async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
       const { trackingNumber, carrier } = req.body;
@@ -162,8 +194,8 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Mark order as delivered
-  router.post('/:orderId/deliver', async (req: Request, res: Response) => {
+  // Mark order as delivered (admin only)
+  router.post('/:orderId/deliver', requireAdmin, async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
       const order = await orderService.markAsDelivered(orderId);
@@ -179,7 +211,7 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
-  // Get all orders (admin)
+  // Get all orders (admin only) or user's own orders
   router.get('/', async (req: Request, res: Response) => {
     try {
       const userId = req.query.userId as string;
@@ -187,14 +219,21 @@ export function createOrderRoutes(orderService: OrderService): Router {
       const limit = parseInt(req.query.limit as string) || 20;
       const skip = parseInt(req.query.skip as string) || 0;
 
-      if (userId) {
-        // Get orders for specific user
-        const orders = await orderService.getUserOrders(userId, limit, skip);
+      // If requesting all orders (no userId filter), require admin
+      if (!userId) {
+        if (req.user!.role !== 'admin') {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+        const orders = await orderService.getAllOrders(limit, skip, status);
         return res.json({ orders, limit, skip });
       }
 
-      // Admin: Get all orders (would require admin auth in production)
-      const orders = await orderService.getAllOrders(limit, skip, status);
+      // If requesting specific user's orders, verify ownership (unless admin)
+      if (req.user!.role !== 'admin' && userId !== req.user!.user_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const orders = await orderService.getUserOrders(userId, limit, skip);
       res.json({ orders, limit, skip });
     } catch (error: any) {
       logger.error('Failed to get orders', { error: error.message });

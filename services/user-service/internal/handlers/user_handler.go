@@ -43,7 +43,21 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, response)
+	// Set httpOnly cookie for authentication
+	c.SetCookie(
+		"auth_token",           // name
+		response.Token,         // value
+		86400,                  // maxAge (24 hours in seconds)
+		"/",                    // path
+		"",                     // domain (empty = current domain)
+		false,                  // secure (set to true in production with HTTPS)
+		true,                   // httpOnly
+	)
+
+	// Return user data without token in response body
+	c.JSON(http.StatusCreated, gin.H{
+		"user": response.User,
+	})
 }
 
 // Login handles user login
@@ -62,7 +76,38 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	// Set httpOnly cookie for authentication
+	c.SetCookie(
+		"auth_token",           // name
+		response.Token,         // value
+		86400,                  // maxAge (24 hours in seconds)
+		"/",                    // path
+		"",                     // domain (empty = current domain)
+		false,                  // secure (set to true in production with HTTPS)
+		true,                   // httpOnly
+	)
+
+	// Return user data without token in response body
+	c.JSON(http.StatusOK, gin.H{
+		"user": response.User,
+	})
+}
+
+// Logout handles user logout by clearing the auth cookie
+// POST /auth/logout
+func (h *UserHandler) Logout(c *gin.Context) {
+	// Clear the auth cookie
+	c.SetCookie(
+		"auth_token",           // name
+		"",                     // empty value
+		-1,                     // maxAge (negative = delete immediately)
+		"/",                    // path
+		"",                     // domain
+		false,                  // secure
+		true,                   // httpOnly
+	)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
 // GetProfile returns the current user's profile

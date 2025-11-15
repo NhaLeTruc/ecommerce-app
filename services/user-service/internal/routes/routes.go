@@ -23,6 +23,7 @@ func SetupRoutes(
 		{
 			auth.POST("/register", userHandler.Register)
 			auth.POST("/login", userHandler.Login)
+			auth.POST("/logout", userHandler.Logout)
 			auth.POST("/validate", userHandler.ValidateToken)
 		}
 

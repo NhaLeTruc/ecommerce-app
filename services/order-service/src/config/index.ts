@@ -39,4 +39,9 @@ export const config = {
   cors: {
     origins: (process.env.CORS_ORIGINS || '*').split(','),
   },
+
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production',
+    expiryHours: parseInt(process.env.JWT_EXPIRY_HOURS || '24', 10),
+  },
 };
