@@ -3,26 +3,28 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { cartService, orderService, Cart, Address, CreateOrderRequest } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function CheckoutPage() {
+function CheckoutPageContent() {
   const router = useRouter();
+  const { user } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock user ID - in production, this would come from auth
-  const userId = 'user_123';
+  const userId = user?.id || '';
 
-  // Form state
+  // Form state - pre-fill with user data
   const [shippingAddress, setShippingAddress] = useState<Address>({
-    fullName: '',
+    fullName: user ? `${user.firstName} ${user.lastName}` : '',
     street: '',
     city: '',
     state: '',
     zipCode: '',
     country: 'USA',
-    phone: '',
+    phone: user?.phone || '',
   });
 
   const [billingAddress, setBillingAddress] = useState<Address>({
@@ -45,8 +47,10 @@ export default function CheckoutPage() {
   });
 
   useEffect(() => {
-    loadCart();
-  }, []);
+    if (userId) {
+      loadCart();
+    }
+  }, [userId]);
 
   const loadCart = async () => {
     try {
@@ -463,5 +467,13 @@ export default function CheckoutPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <ProtectedRoute>
+      <CheckoutPageContent />
+    </ProtectedRoute>
   );
 }

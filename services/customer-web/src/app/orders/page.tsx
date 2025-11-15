@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { orderService, Order } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function OrdersPage() {
+function OrdersPageContent() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,12 +15,13 @@ export default function OrdersPage() {
   const [hasMore, setHasMore] = useState(true);
   const limit = 10;
 
-  // Mock user ID - in production, this would come from auth
-  const userId = 'user_123';
+  const userId = user?.id || '';
 
   useEffect(() => {
-    loadOrders();
-  }, [page]);
+    if (userId) {
+      loadOrders();
+    }
+  }, [page, userId]);
 
   const loadOrders = async () => {
     try {
@@ -216,5 +220,13 @@ export default function OrdersPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <ProtectedRoute>
+      <OrdersPageContent />
+    </ProtectedRoute>
   );
 }
