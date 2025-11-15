@@ -8,14 +8,17 @@
 
 1. [Security Overview](#security-overview)
 2. [Authentication & Authorization](#authentication--authorization)
-3. [Data Protection](#data-protection)
-4. [Input Validation](#input-validation)
-5. [Rate Limiting](#rate-limiting)
-6. [Security Headers](#security-headers)
-7. [Database Security](#database-security)
-8. [Deployment Checklist](#deployment-checklist)
-9. [Security Testing](#security-testing)
-10. [Incident Response](#incident-response)
+3. [CSRF Protection](#csrf-protection)
+4. [Service-to-Service Authentication](#service-to-service-authentication)
+5. [Session Management & Token Refresh](#session-management--token-refresh)
+6. [Data Protection](#data-protection)
+7. [Input Validation](#input-validation)
+8. [Rate Limiting](#rate-limiting)
+9. [Security Headers](#security-headers)
+10. [Database Security](#database-security)
+11. [Deployment Checklist](#deployment-checklist)
+12. [Security Testing](#security-testing)
+13. [Incident Response](#incident-response)
 
 ---
 
@@ -25,6 +28,9 @@ This ecommerce platform implements defense-in-depth security with multiple layer
 
 - **Authentication**: JWT-based auth with httpOnly cookies
 - **Authorization**: Role-based access control (RBAC) and ownership verification
+- **CSRF Protection**: Double-submit cookie pattern with timing-safe validation
+- **Service-to-Service Auth**: HMAC-signed API keys for inter-service communication
+- **Session Management**: Sliding sessions with automatic token refresh
 - **Data Protection**: Encrypted connections, secure session management
 - **Input Validation**: Joi schema validation on all inputs
 - **Rate Limiting**: DOS protection on all endpoints
@@ -38,10 +44,11 @@ This ecommerce platform implements defense-in-depth security with multiple layer
 | Authorization | ✅ Strong | RBAC + ownership checks |
 | XSS Protection | ✅ Strong | No localStorage, CSP headers |
 | SQL Injection | ✅ Strong | Parameterized queries only |
-| CSRF Protection | ⚠️ Partial | SameSite cookies (missing tokens) |
+| CSRF Protection | ✅ Strong | CSRF tokens + SameSite cookies |
 | Rate Limiting | ✅ Strong | Implemented on all services |
 | Input Validation | ✅ Strong | Joi schemas on all inputs |
-| Service-to-Service Auth | ❌ Missing | **TODO**: Add API keys/mTLS |
+| Service-to-Service Auth | ✅ Strong | HMAC-signed API keys |
+| Session Management | ✅ Strong | Sliding sessions with auto-refresh |
 
 ---
 
@@ -151,6 +158,269 @@ router.get('/:orderId', async (req, res) => {
 
   res.json({ order });
 });
+```
+
+---
+
+## CSRF Protection
+
+### Overview
+
+Cross-Site Request Forgery (CSRF) protection is implemented using double-submit cookie pattern with server-side validation.
+
+### How It Works
+
+```
+1. User authenticates → Server sets CSRF token cookie (NOT httpOnly, so JS can read)
+2. Client reads CSRF token from cookie
+3. Client includes token in X-CSRF-Token header for state-changing requests
+4. Server validates token matches cookie value
+5. Request processed if tokens match
+```
+
+### Implementation
+
+**Server-side (Cart/Order Services):**
+
+```typescript
+import { setCsrfToken, validateCsrfToken, getCsrfTokenEndpoint } from './middleware/csrf';
+
+// Get CSRF token endpoint
+router.get('/api/v1/csrf-token', setCsrfToken, getCsrfTokenEndpoint);
+
+// Protected route with CSRF
+router.post('/api/v1/cart/items',
+  authenticateJWT,        // Verify JWT
+  setCsrfToken,          // Set CSRF token if needed
+  validateCsrfToken,     // Validate CSRF token
+  async (req, res) => {
+    // Process request
+  }
+);
+```
+
+**Client-side (Frontend):**
+
+```typescript
+// CSRF token is automatically fetched and added to requests
+import { initializeCsrf } from './lib/api';
+
+// On app initialization
+await initializeCsrf();
+
+// Axios interceptor automatically adds X-CSRF-Token header
+// to all POST, PUT, PATCH, DELETE requests
+```
+
+### Configuration
+
+```typescript
+// CSRF cookie settings
+res.cookie('csrf_token', token, {
+  maxAge: 24 * 60 * 60 * 1000,  // 24 hours
+  secure: process.env.NODE_ENV === 'production',  // HTTPS only in production
+  sameSite: 'strict',  // Additional CSRF protection
+  signed: true,        // Prevent tampering
+  httpOnly: false      // JS needs to read this
+});
+```
+
+### Security Features
+
+- **Timing-safe comparison**: Uses `crypto.timingSafeEqual()` to prevent timing attacks
+- **SameSite cookies**: Double protection with SameSite=strict
+- **Service bypass**: Service-to-service requests skip CSRF (use HMAC instead)
+- **Safe methods**: GET, HEAD, OPTIONS don't require CSRF tokens
+- **Auto-refresh**: Token automatically refreshed on expiration
+
+---
+
+## Service-to-Service Authentication
+
+### Overview
+
+Microservices authenticate to each other using HMAC-signed API keys. This prevents unauthorized services from making internal API calls.
+
+### How It Works
+
+```
+1. Service A wants to call Service B
+2. Service A creates HMAC signature: HMAC-SHA256(method + path + body + timestamp, API_KEY)
+3. Service A sends request with headers:
+   - X-Service-Id: service-a
+   - X-Service-Key: [API key]
+   - X-Timestamp: [current timestamp]
+   - X-Signature: [HMAC signature]
+4. Service B validates:
+   - Service ID is known
+   - API key matches
+   - Timestamp is within 5-minute window (replay attack prevention)
+   - Signature matches expected value
+   - Service is authorized for this endpoint
+5. Request processed if all checks pass
+```
+
+### Service Registry
+
+```typescript
+// services/order-service/src/middleware/serviceAuth.ts
+const SERVICE_REGISTRY = {
+  'cart-service': {
+    serviceName: 'cart-service',
+    apiKey: process.env.CART_SERVICE_API_KEY,
+    allowedEndpoints: ['/api/v1/orders']  // Can create orders
+  },
+  'payment-service': {
+    serviceName: 'payment-service',
+    apiKey: process.env.PAYMENT_SERVICE_API_KEY,
+    allowedEndpoints: ['/api/v1/orders/:orderId/payment']
+  }
+};
+```
+
+### Usage
+
+**Protecting an endpoint (Server):**
+
+```typescript
+import { authenticateService } from './middleware/serviceAuth';
+
+// Service-only endpoint
+router.post('/api/v1/orders',
+  authenticateService,  // Verify service authentication
+  async (req, res) => {
+    console.log('Called by service:', req.serviceId);
+    // Process request
+  }
+);
+```
+
+**Making a service call (Client):**
+
+```typescript
+import { ServiceClient } from './middleware/serviceAuth';
+
+const client = new ServiceClient('cart-service', process.env.CART_SERVICE_API_KEY);
+
+// Make authenticated request
+const result = await client.post(
+  'http://order-service:5006',
+  '/api/v1/orders',
+  { userId: 'user123', items: [...] }
+);
+```
+
+### Security Features
+
+- **HMAC-SHA256**: Cryptographically secure signatures
+- **Replay protection**: 5-minute timestamp window
+- **Endpoint authorization**: Services can only access allowed endpoints
+- **Timing-safe comparison**: Prevents timing attacks
+- **Request tampering detection**: Any change to request invalidates signature
+
+### Environment Variables
+
+```bash
+# Add to .env
+CART_SERVICE_API_KEY=your-random-api-key-here
+ORDER_SERVICE_API_KEY=your-random-api-key-here
+PAYMENT_SERVICE_API_KEY=your-random-api-key-here
+
+# Generate secure keys:
+openssl rand -base64 32
+```
+
+---
+
+## Session Management & Token Refresh
+
+### Overview
+
+Implements sliding sessions that automatically extend active user sessions without requiring separate refresh tokens.
+
+### How It Works
+
+```
+1. User logs in → Receives JWT valid for 24 hours
+2. User makes request with JWT
+3. Server checks: Is token expiring within 1 hour?
+4. If yes → Generate new JWT, set as httpOnly cookie
+5. Response includes X-Token-Refreshed: true header
+6. Client continues with new token automatically
+```
+
+### Token Refresh Middleware
+
+```typescript
+import { refreshTokenIfNeeded } from './middleware/tokenRefresh';
+
+// Apply to all authenticated routes
+router.use(authenticateJWT);
+router.use(refreshTokenIfNeeded({
+  refreshWindow: 3600,        // Refresh when <1 hour remaining (seconds)
+  newTokenExpiration: 86400,  // New token valid for 24 hours (seconds)
+  enabled: true               // Can disable in development
+}));
+```
+
+### Explicit Refresh Endpoint
+
+Users can also manually refresh their token:
+
+```typescript
+// POST /api/v1/auth/refresh
+router.post('/api/v1/auth/refresh', authenticateJWT, refreshTokenEndpoint);
+
+// Response:
+{
+  "message": "Token refreshed successfully",
+  "expiresAt": "2025-11-16T12:00:00.000Z"
+}
+```
+
+### Token Info Endpoint
+
+Check token expiration status:
+
+```typescript
+// GET /api/v1/auth/token-info
+router.get('/api/v1/auth/token-info', authenticateJWT, getTokenInfo);
+
+// Response:
+{
+  "userId": "user123",
+  "email": "user@example.com",
+  "role": "customer",
+  "issuedAt": "2025-11-15T12:00:00.000Z",
+  "expiresAt": "2025-11-16T12:00:00.000Z",
+  "secondsUntilExpiration": 43200,
+  "shouldRefresh": false
+}
+```
+
+### Benefits
+
+- **Seamless UX**: Active users never get logged out
+- **No database needed**: Unlike refresh tokens, no persistence required
+- **Automatic rotation**: Tokens regularly rotated for security
+- **Configurable**: Adjust refresh window and expiration times
+- **Activity tracking**: Only active users get extended sessions
+
+### Configuration
+
+```typescript
+// Default configuration
+const config = {
+  refreshWindow: 3600,        // 1 hour
+  newTokenExpiration: 86400,  // 24 hours
+  enabled: true
+};
+
+// Custom configuration
+router.use(refreshTokenIfNeeded({
+  refreshWindow: 7200,        // 2 hours
+  newTokenExpiration: 172800, // 48 hours
+}));
 ```
 
 ---

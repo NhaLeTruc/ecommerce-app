@@ -25,6 +25,98 @@ const authApi = axios.create({
   withCredentials: true, // Send cookies with requests
 });
 
+// CSRF token management
+let csrfToken: string | null = null;
+
+/**
+ * Fetch CSRF token from the cart service
+ * The token is also set as a cookie, but we need to read it for headers
+ */
+async function fetchCsrfToken(): Promise<string> {
+  try {
+    const response = await cartApi.get('/api/v1/csrf-token');
+    csrfToken = response.data.csrfToken;
+    return csrfToken;
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get the current CSRF token, fetching if necessary
+ */
+async function getCsrfToken(): Promise<string> {
+  if (!csrfToken) {
+    await fetchCsrfToken();
+  }
+  return csrfToken!;
+}
+
+/**
+ * Add CSRF token interceptor to axios instances
+ * Automatically includes X-CSRF-Token header for state-changing requests
+ */
+function addCsrfInterceptor(axiosInstance: any) {
+  axiosInstance.interceptors.request.use(
+    async (config: any) => {
+      // Only add CSRF token for state-changing methods
+      const statefulMethods = ['post', 'put', 'patch', 'delete'];
+      if (statefulMethods.includes(config.method?.toLowerCase())) {
+        try {
+          const token = await getCsrfToken();
+          config.headers['X-CSRF-Token'] = token;
+        } catch (error) {
+          console.error('Failed to add CSRF token to request:', error);
+          // Continue without CSRF token - server will reject
+        }
+      }
+      return config;
+    },
+    (error: any) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Handle CSRF token expiration
+  axiosInstance.interceptors.response.use(
+    (response: any) => response,
+    async (error: any) => {
+      if (error.response?.status === 403 && error.response?.data?.error === 'Invalid CSRF token') {
+        // CSRF token expired or invalid, fetch new one and retry
+        try {
+          await fetchCsrfToken();
+          // Retry the original request with new token
+          const originalRequest = error.config;
+          originalRequest.headers['X-CSRF-Token'] = csrfToken;
+          return axiosInstance(originalRequest);
+        } catch (retryError) {
+          return Promise.reject(retryError);
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+}
+
+// Add CSRF interceptors to services that need it
+addCsrfInterceptor(cartApi);
+addCsrfInterceptor(orderApi);
+addCsrfInterceptor(authApi);
+
+/**
+ * Initialize CSRF token on app load
+ * Should be called when the app starts
+ */
+export async function initializeCsrf(): Promise<void> {
+  try {
+    await fetchCsrfToken();
+  } catch (error) {
+    console.error('Failed to initialize CSRF token:', error);
+    // Non-fatal - token will be fetched on first authenticated request
+  }
+}
+
 export interface Product {
   id: string;
   sku: string;
