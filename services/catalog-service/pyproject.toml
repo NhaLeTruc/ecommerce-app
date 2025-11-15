@@ -1,0 +1,63 @@
+[tool.poetry]
+name = "catalog-service"
+version = "1.0.0"
+description = "Product catalog service for ecommerce platform"
+authors = ["Ecommerce Platform Team"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+motor = "^3.3.2"  # Async MongoDB driver
+pymongo = "^4.6.0"
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+opensearch-py = "^2.4.0"
+aiokafka = "^0.9.0"
+redis = {extras = ["hiredis"], version = "^5.0.1"}
+python-dotenv = "^1.0.0"
+structlog = "^23.2.0"
+opentelemetry-api = "^1.21.0"
+opentelemetry-sdk = "^1.21.0"
+opentelemetry-instrumentation-fastapi = "^0.42b0"
+opentelemetry-exporter-otlp = "^1.21.0"
+prometheus-client = "^0.19.0"
+httpx = "^0.25.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+pytest-cov = "^4.1.0"
+black = "^23.12.0"
+isort = "^5.13.2"
+flake8 = "^6.1.0"
+mypy = "^1.7.1"
+httpx = "^0.25.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --cov=src --cov-report=term-missing --cov-report=html"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
