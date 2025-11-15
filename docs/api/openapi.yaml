@@ -1,0 +1,833 @@
+openapi: 3.0.3
+info:
+  title: Ecommerce Platform API
+  description: |
+    Complete API documentation for the microservices-based ecommerce platform.
+
+    ## Services
+    - **Catalog Service** - Product and category management
+    - **Inventory Service** - Stock management and reservations
+    - **Cart Service** - Shopping cart operations
+    - **Order Service** - Order processing and management
+    - **Payment Service** - Payment processing
+    - **User Service** - Authentication and user management
+    - **Notification Service** - Email and notifications
+
+    ## Authentication
+    Most endpoints require JWT authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+  version: 1.0.0
+  contact:
+    name: Platform Team
+    email: platform@ecommerce.local
+
+servers:
+  - url: http://localhost:8080
+    description: API Gateway (Development)
+  - url: http://localhost:8000
+    description: Catalog Service (Direct)
+  - url: http://localhost:8001
+    description: Inventory Service (Direct)
+  - url: http://localhost:3000
+    description: Cart Service (Direct)
+  - url: http://localhost:3001
+    description: Order Service (Direct)
+  - url: http://localhost:8003
+    description: Payment Service (Direct)
+  - url: http://localhost:8084
+    description: User Service (Direct)
+
+tags:
+  - name: Products
+    description: Product management operations
+  - name: Categories
+    description: Category management operations
+  - name: Inventory
+    description: Inventory and stock management
+  - name: Cart
+    description: Shopping cart operations
+  - name: Orders
+    description: Order processing and management
+  - name: Payments
+    description: Payment processing
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User management
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/v1/auth/login
+
+  schemas:
+    Product:
+      type: object
+      required:
+        - sku
+        - name
+        - slug
+        - description
+        - price
+        - category
+      properties:
+        id:
+          type: string
+          example: "prod-laptop-001"
+        sku:
+          type: string
+          example: "LAPTOP-001"
+        name:
+          type: string
+          example: "Premium Ultrabook Pro 15"
+        slug:
+          type: string
+          example: "premium-ultrabook-pro-15"
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+          example: 1299.99
+        currency:
+          type: string
+          default: "USD"
+          example: "USD"
+        category:
+          type: string
+          example: "cat-computers"
+        brand:
+          type: string
+          example: "TechBrand"
+        images:
+          type: array
+          items:
+            type: string
+          example: ["https://example.com/image1.jpg"]
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["laptop", "ultrabook"]
+        in_stock:
+          type: boolean
+          example: true
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+        review_count:
+          type: integer
+          example: 42
+
+    InventoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        product_id:
+          type: string
+        sku:
+          type: string
+        quantity:
+          type: integer
+        reserved_quantity:
+          type: integer
+        available_quantity:
+          type: integer
+        reorder_level:
+          type: integer
+        reorder_quantity:
+          type: integer
+        status:
+          type: string
+          enum: [in_stock, low_stock, out_of_stock, reserved]
+        location:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CartItem:
+      type: object
+      required:
+        - productId
+        - sku
+        - name
+        - price
+        - quantity
+      properties:
+        productId:
+          type: string
+        sku:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+        quantity:
+          type: integer
+          minimum: 1
+        imageUrl:
+          type: string
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        orderNumber:
+          type: string
+        userId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        subtotal:
+          type: number
+          format: float
+        taxAmount:
+          type: number
+          format: float
+        shippingAmount:
+          type: number
+          format: float
+        totalAmount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+        paymentStatus:
+          type: string
+          enum: [pending, authorized, captured, failed, refunded]
+        paymentMethod:
+          type: string
+        shippingAddress:
+          $ref: '#/components/schemas/Address'
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        trackingNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      required:
+        - fullName
+        - street
+        - city
+        - state
+        - zipCode
+        - country
+        - phone
+      properties:
+        fullName:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        country:
+          type: string
+        phone:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [customer, admin]
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+
+paths:
+  # ===================
+  # Authentication
+  # ===================
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - firstName
+                - lastName
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+
+  /api/v1/auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+
+  # ===================
+  # Products
+  # ===================
+  /api/v1/products:
+    get:
+      tags:
+        - Products
+      summary: List products
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: category_id
+          in: query
+          schema:
+            type: string
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  total:
+                    type: integer
+                  skip:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized
+
+  /api/v1/products/{productId}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+
+    put:
+      tags:
+        - Products
+      summary: Update product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Product deleted
+
+  # ===================
+  # Inventory
+  # ===================
+  /api/v1/inventory:
+    get:
+      tags:
+        - Inventory
+      summary: List inventory items
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Inventory items retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InventoryItem'
+
+  /api/v1/inventory/{id}/adjust:
+    post:
+      tags:
+        - Inventory
+      summary: Adjust inventory quantity
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quantity
+                - reason
+                - adjusted_by
+              properties:
+                quantity:
+                  type: integer
+                  description: Positive to add, negative to remove
+                reason:
+                  type: string
+                adjusted_by:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Inventory adjusted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+
+  /api/v1/inventory/low-stock:
+    get:
+      tags:
+        - Inventory
+      summary: Get low stock items
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Low stock items retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryItem'
+
+  # ===================
+  # Cart
+  # ===================
+  /api/v1/cart/{userId}:
+    get:
+      tags:
+        - Cart
+      summary: Get user's cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CartItem'
+                  subtotal:
+                    type: number
+                  totalItems:
+                    type: integer
+
+  /api/v1/cart/{userId}/items:
+    post:
+      tags:
+        - Cart
+      summary: Add item to cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItem'
+      responses:
+        '200':
+          description: Item added to cart
+
+  /api/v1/cart/{userId}/clear:
+    delete:
+      tags:
+        - Cart
+      summary: Clear cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart cleared
+
+  # ===================
+  # Orders
+  # ===================
+  /api/v1/orders:
+    post:
+      tags:
+        - Orders
+      summary: Create a new order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - items
+                - shippingAddress
+                - billingAddress
+                - paymentMethod
+              properties:
+                userId:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CartItem'
+                shippingAddress:
+                  $ref: '#/components/schemas/Address'
+                billingAddress:
+                  $ref: '#/components/schemas/Address'
+                paymentMethod:
+                  type: string
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+
+  /api/v1/orders/user/{userId}:
+    get:
+      tags:
+        - Orders
+      summary: Get user's orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Orders retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+  /api/v1/orders/{orderId}:
+    get:
+      tags:
+        - Orders
+      summary: Get order by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /api/v1/orders/{orderId}/ship:
+    post:
+      tags:
+        - Orders
+      summary: Ship order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trackingNumber
+                - carrier
+              properties:
+                trackingNumber:
+                  type: string
+                carrier:
+                  type: string
+      responses:
+        '200':
+          description: Order shipped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /api/v1/orders/{orderId}/deliver:
+    post:
+      tags:
+        - Orders
+      summary: Mark order as delivered
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order marked as delivered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
