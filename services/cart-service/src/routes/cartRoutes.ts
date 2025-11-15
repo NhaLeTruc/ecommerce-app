@@ -3,6 +3,7 @@ import { CartService } from '../services/cartService';
 import { AddToCartRequest, UpdateCartItemRequest } from '../models/cart';
 import { logger } from '../middleware/logger';
 import { authenticateJWT } from '../middleware/auth';
+import { validateBody, addToCartSchema, updateCartItemSchema } from '../middleware/validation';
 
 export function createCartRoutes(cartService: CartService): Router {
   const router = Router();
@@ -28,19 +29,10 @@ export function createCartRoutes(cartService: CartService): Router {
   });
 
   // Add item to cart
-  router.post('/items', async (req: Request, res: Response) => {
+  router.post('/items', validateBody(addToCartSchema), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.user_id;
       const item: AddToCartRequest = req.body;
-
-      // Validate request
-      if (!item.productId || !item.sku || !item.name || item.price === undefined || !item.quantity) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-
-      if (item.price < 0) {
-        return res.status(400).json({ error: 'Price must be non-negative' });
-      }
 
       const cart = await cartService.addItem(userId, item);
       res.status(200).json({ cart });
@@ -56,15 +48,11 @@ export function createCartRoutes(cartService: CartService): Router {
   });
 
   // Update item quantity
-  router.put('/items/:productId', async (req: Request, res: Response) => {
+  router.put('/items/:productId', validateBody(updateCartItemSchema), async (req: Request, res: Response) => {
     try {
       const userId = req.user!.user_id;
       const { productId } = req.params;
       const { quantity }: UpdateCartItemRequest = req.body;
-
-      if (quantity === undefined) {
-        return res.status(400).json({ error: 'Quantity is required' });
-      }
 
       const cart = await cartService.updateItemQuantity(userId, productId, quantity);
       res.json({ cart });
