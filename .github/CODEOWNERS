@@ -1,0 +1,203 @@
+# Ecommerce Platform - Code Owners
+#
+# This file defines code ownership for the repository.
+# When a pull request modifies code in a directory, the listed owners
+# are automatically requested for review.
+#
+# Order is important; the last matching pattern takes precedence.
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# =============================================================================
+# Default Owners
+# =============================================================================
+
+# Default owners for everything in the repo (unless overridden below)
+* @senior-engineers
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+/docs/ @tech-writers @senior-engineers
+*.md @tech-writers
+/specs/ @senior-engineers @product-team
+README.md @senior-engineers
+
+# =============================================================================
+# Constitution & Governance
+# =============================================================================
+
+# Constitution changes require architecture team review
+/.specify/memory/constitution.md @architecture-team @senior-engineers @tech-lead
+/specs/**/spec.md @product-team @senior-engineers
+/specs/**/plan.md @architecture-team @senior-engineers
+
+# =============================================================================
+# Infrastructure & DevOps
+# =============================================================================
+
+/infrastructure/ @devops-team @senior-engineers
+/infrastructure/terraform/ @devops-team @infrastructure-team
+/infrastructure/k8s/ @devops-team @platform-team
+/infrastructure/docker-compose/ @devops-team
+
+# Observability configuration
+/observability/ @sre-team @devops-team
+/observability/prometheus/ @sre-team
+/observability/grafana/ @sre-team
+
+# Security infrastructure
+/infrastructure/vault/ @security-team @devops-team
+/infrastructure/waf/ @security-team @devops-team
+
+# CI/CD Workflows
+/.github/workflows/ @devops-team @senior-engineers
+/scripts/ @devops-team @senior-engineers
+
+# =============================================================================
+# Services (Microservices)
+# =============================================================================
+
+# Catalog Service (Python/FastAPI)
+/services/catalog-service/ @backend-team @python-team
+/services/catalog-service/src/api/ @backend-team @api-team
+/services/catalog-service/tests/ @backend-team @qa-team
+
+# Cart Service (Node.js/TypeScript)
+/services/cart-service/ @backend-team @nodejs-team
+/services/cart-service/src/api/ @backend-team @api-team
+/services/cart-service/tests/ @backend-team @qa-team
+
+# Checkout Service (Go)
+/services/checkout-service/ @backend-team @go-team
+/services/checkout-service/internal/api/ @backend-team @api-team
+/services/checkout-service/tests/ @backend-team @qa-team
+
+# Payment Service (Go) - CRITICAL: Requires security review
+/services/payment-service/ @backend-team @go-team @security-team
+/services/payment-service/internal/api/ @backend-team @api-team @security-team
+/services/payment-service/internal/domain/ @backend-team @security-team
+
+# Inventory Service (Go)
+/services/inventory-service/ @backend-team @go-team
+/services/inventory-service/internal/api/ @backend-team @api-team
+/services/inventory-service/tests/ @backend-team @qa-team
+
+# Orders Service (Go)
+/services/orders-service/ @backend-team @go-team
+/services/orders-service/internal/api/ @backend-team @api-team
+/services/orders-service/tests/ @backend-team @qa-team
+
+# Fulfillment Service (Node.js/TypeScript)
+/services/fulfillment-service/ @backend-team @nodejs-team @operations-team
+/services/fulfillment-service/src/api/ @backend-team @api-team
+
+# Accounts Service (Node.js/TypeScript) - CRITICAL: Requires security review
+/services/accounts-service/ @backend-team @nodejs-team @security-team
+/services/accounts-service/src/api/ @backend-team @api-team @security-team
+/services/accounts-service/src/domain/ @backend-team @security-team
+
+# Recommendations Service (Python/FastAPI)
+/services/recommendations-service/ @backend-team @python-team @ml-team
+/services/recommendations-service/src/models/ @ml-team @data-science-team
+
+# API Gateway (Node.js/TypeScript)
+/services/api-gateway/ @backend-team @nodejs-team @api-team
+/services/api-gateway/src/routes/ @backend-team @api-team
+
+# =============================================================================
+# Frontend
+# =============================================================================
+
+# Customer Web (Next.js)
+/frontend/customer-web/ @frontend-team @react-team
+/frontend/customer-web/app/ @frontend-team
+/frontend/customer-web/components/ @frontend-team @ui-team
+/frontend/customer-web/lib/api/ @frontend-team @api-team
+
+# Admin Dashboard (Remix)
+/frontend/admin-dashboard/ @frontend-team @react-team
+/frontend/admin-dashboard/app/routes/ @frontend-team
+/frontend/admin-dashboard/app/components/ @frontend-team @ui-team
+
+# =============================================================================
+# Shared Libraries
+# =============================================================================
+
+/shared/go/ @backend-team @go-team
+/shared/nodejs/ @backend-team @nodejs-team
+/shared/python/ @backend-team @python-team
+
+# Shared security packages
+/shared/**/security/ @security-team @backend-team
+/shared/**/auth/ @security-team @backend-team
+
+# Shared observability packages
+/shared/**/otel/ @sre-team @backend-team
+/shared/**/logging/ @sre-team @backend-team
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+/tests/ @qa-team @backend-team
+/tests/e2e/ @qa-team @frontend-team
+/tests/contract/ @qa-team @backend-team @api-team
+/tests/load/ @qa-team @sre-team
+
+# =============================================================================
+# Configuration Files
+# =============================================================================
+
+# Package management
+package.json @nodejs-team @devops-team
+package-lock.json @nodejs-team @devops-team
+go.mod @go-team @devops-team
+go.sum @go-team @devops-team
+requirements.txt @python-team @devops-team
+Pipfile @python-team @devops-team
+
+# Build configuration
+Makefile @devops-team @senior-engineers
+Dockerfile @devops-team @backend-team
+docker-compose*.yml @devops-team
+
+# Environment configuration
+.env.example @devops-team @senior-engineers
+.gitignore @devops-team
+
+# Linting and formatting
+.eslintrc* @frontend-team @nodejs-team
+.prettierrc* @frontend-team @nodejs-team
+.pylintrc @python-team
+.golangci.yml @go-team
+
+# =============================================================================
+# Security-Critical Files (Multiple approvals required)
+# =============================================================================
+
+# Any file dealing with authentication/authorization
+**/*auth* @security-team @senior-engineers
+**/*jwt* @security-team @senior-engineers
+**/*password* @security-team @senior-engineers
+**/*credential* @security-team @senior-engineers
+
+# Payment processing
+**/*payment* @security-team @senior-engineers @compliance-team
+**/*stripe* @security-team @senior-engineers
+
+# PII handling
+**/*user* @security-team @privacy-team
+**/*customer* @security-team @privacy-team
+
+# Database migrations
+**/migrations/ @backend-team @database-team @senior-engineers
+**/alembic/ @backend-team @database-team
+
+# =============================================================================
+# Release & Deployment
+# =============================================================================
+
+/CHANGELOG.md @senior-engineers @product-team
+/VERSION @senior-engineers @devops-team

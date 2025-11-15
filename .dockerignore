@@ -1,0 +1,74 @@
+# Ecommerce Platform - Docker Ignore
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+*.md
+!README.md
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+vendor/
+.venv/
+venv/
+
+# Build artifacts
+dist/
+build/
+out/
+target/
+*.egg-info/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Testing
+tests/
+test/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+**/__tests__/
+.pytest_cache/
+coverage/
+.nyc_output/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker files (don't include in images)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
