@@ -60,14 +60,18 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-Examples of foundational tasks (adjust based on your project):
+Examples of foundational tasks (adjust based on your project and constitution requirements):
 
 - [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
+- [ ] T005 [P] Implement authentication/authorization framework (SEC: RBAC, secure sessions)
 - [ ] T006 [P] Setup API routing and middleware structure
 - [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T008 [P] Configure observability infrastructure (structured logging, tracing, metrics)
+- [ ] T009 [P] Configure error handling with correlation IDs
+- [ ] T010 Setup environment configuration and secrets management (SEC: Vault/AWS Secrets Manager)
+- [ ] T011 [P] Implement rate limiting middleware (SEC: prevent brute-force)
+- [ ] T012 [P] Setup security headers (CSP, HSTS, X-Frame-Options)
+- [ ] T013 Configure health check endpoints (liveness/readiness)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -79,23 +83,29 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 1 (REQUIRED per TDD constitution) ⚠️
 
-> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+> **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation (Red-Green-Refactor)**
 
-- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T020 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T021 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T022 [P] [US1] Security test for [auth/input validation] in tests/security/test_[name].py
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Create [Entity1] model in src/models/[entity1].py
-- [ ] T013 [P] [US1] Create [Entity2] model in src/models/[entity2].py
-- [ ] T014 [US1] Implement [Service] in src/services/[service].py (depends on T012, T013)
-- [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T016 [US1] Add validation and error handling
-- [ ] T017 [US1] Add logging for user story 1 operations
+- [ ] T023 [P] [US1] Create [Entity1] model in src/models/[entity1].py
+- [ ] T024 [P] [US1] Create [Entity2] model in src/models/[entity2].py
+- [ ] T025 [US1] Implement [Service] in src/services/[service].py (depends on T023, T024)
+- [ ] T026 [US1] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T027 [US1] Add input validation and sanitization (SEC: prevent injection)
+- [ ] T028 [US1] Add error handling with graceful degradation (SRE)
+- [ ] T029 [US1] Add structured logging with correlation IDs (OBS)
+- [ ] T030 [US1] Add distributed tracing instrumentation (OBS)
+- [ ] T031 [US1] Add metrics for RED (Rate, Errors, Duration) (OBS)
+- [ ] T032 [US1] Implement circuit breakers for external dependencies (SRE)
+- [ ] T033 [US1] Verify test coverage ≥80% (TDD)
 
-**Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
+**Checkpoint**: At this point, User Story 1 should be fully functional, observable, secure, and testable independently
 
 ---
 
@@ -105,17 +115,23 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 2 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 2 (REQUIRED per TDD constitution) ⚠️
 
-- [ ] T018 [P] [US2] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T019 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].py
+> **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation (Red-Green-Refactor)**
+
+- [ ] T040 [P] [US2] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T041 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T042 [P] [US2] Security test for [auth/input validation] in tests/security/test_[name].py
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Create [Entity] model in src/models/[entity].py
-- [ ] T021 [US2] Implement [Service] in src/services/[service].py
-- [ ] T022 [US2] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T023 [US2] Integrate with User Story 1 components (if needed)
+- [ ] T043 [P] [US2] Create [Entity] model in src/models/[entity].py
+- [ ] T044 [US2] Implement [Service] in src/services/[service].py
+- [ ] T045 [US2] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T046 [US2] Add input validation and error handling (SEC/SRE)
+- [ ] T047 [US2] Add observability (logging, tracing, metrics) (OBS)
+- [ ] T048 [US2] Integrate with User Story 1 components (if needed)
+- [ ] T049 [US2] Verify test coverage ≥80% (TDD)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -127,16 +143,22 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 3 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 3 (REQUIRED per TDD constitution) ⚠️
 
-- [ ] T024 [P] [US3] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T025 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].py
+> **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation (Red-Green-Refactor)**
+
+- [ ] T060 [P] [US3] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T061 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T062 [P] [US3] Security test for [auth/input validation] in tests/security/test_[name].py
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Create [Entity] model in src/models/[entity].py
-- [ ] T027 [US3] Implement [Service] in src/services/[service].py
-- [ ] T028 [US3] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T063 [P] [US3] Create [Entity] model in src/models/[entity].py
+- [ ] T064 [US3] Implement [Service] in src/services/[service].py
+- [ ] T065 [US3] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T066 [US3] Add input validation and error handling (SEC/SRE)
+- [ ] T067 [US3] Add observability (logging, tracing, metrics) (OBS)
+- [ ] T068 [US3] Verify test coverage ≥80% (TDD)
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -148,14 +170,19 @@ Examples of foundational tasks (adjust based on your project):
 
 ## Phase N: Polish & Cross-Cutting Concerns
 
-**Purpose**: Improvements that affect multiple user stories
+**Purpose**: Improvements that affect multiple user stories and constitution compliance
 
-- [ ] TXXX [P] Documentation updates in docs/
-- [ ] TXXX Code cleanup and refactoring
-- [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
-- [ ] TXXX Security hardening
-- [ ] TXXX Run quickstart.md validation
+- [ ] T900 [P] Load testing at 2x peak traffic (SRE)
+- [ ] T901 [P] Performance optimization and caching strategy review (PERF)
+- [ ] T902 [P] Security audit - verify OWASP Top 10 mitigations (SEC)
+- [ ] T903 [P] Penetration testing or security scan (SEC)
+- [ ] T904 [P] Code quality review - verify SOLID principles (CLEAN CODE)
+- [ ] T905 Code cleanup and refactoring for maintainability (CLEAN CODE)
+- [ ] T906 [P] SLO monitoring and alerting setup (SRE/OBS)
+- [ ] T907 [P] Documentation updates (API docs, ADRs, runbooks)
+- [ ] T908 Verify overall test coverage ≥80% (TDD)
+- [ ] T909 [P] Dependency vulnerability scan (SEC)
+- [ ] T910 Run quickstart.md validation
 
 ---
 

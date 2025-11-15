@@ -105,6 +105,7 @@
 <!--
   ACTION REQUIRED: Define measurable success criteria.
   These must be technology-agnostic and measurable.
+  Per constitution: Include SLOs, security requirements, and performance targets.
 -->
 
 ### Measurable Outcomes
@@ -113,3 +114,16 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+### SLO & Reliability Targets
+
+- **SLO-001**: Availability target (e.g., "99.9% uptime for critical user journeys")
+- **SLO-002**: Latency target (e.g., "p95 < 300ms for page loads")
+- **SLO-003**: Error rate target (e.g., "<0.1% for transaction processing")
+
+### Security Requirements
+
+- **SEC-001**: OWASP Top 10 mitigations required (injection, XSS, auth, etc.)
+- **SEC-002**: Data protection (e.g., "Encryption at rest and in transit for PII")
+- **SEC-003**: Access control (e.g., "RBAC with principle of least privilege")
+- **SEC-004**: Compliance (e.g., "GDPR/PCI DSS requirements if applicable")

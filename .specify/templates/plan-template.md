@@ -31,7 +31,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with `.specify/memory/constitution.md` principles:
+
+- [ ] **TDD**: Tests planned before implementation? Test strategy documented?
+- [ ] **Clean Code & SOLID**: Architecture follows single responsibility and dependency inversion?
+- [ ] **Decoupled Architecture**: Services loosely coupled? Event-driven communication planned?
+- [ ] **SRE**: SLOs defined? Error budgets established? Graceful degradation strategy?
+- [ ] **Observability**: Logging, tracing, metrics strategy defined? Correlation IDs planned?
+- [ ] **Security**: OWASP Top 10 mitigations addressed? PCI DSS compliance for payments? GDPR considerations?
+- [ ] **Performance**: Load testing plan? Caching strategy? Database optimization approach?
+- [ ] **Code Quality**: CI/CD pipeline gates defined? Code review requirements clear?
+
+**Violations Requiring Justification**: [List any principle deviations with rationale]
 
 ## Project Structure
 
