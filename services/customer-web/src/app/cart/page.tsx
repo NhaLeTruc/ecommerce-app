@@ -4,20 +4,24 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cartService, Cart, CartItem } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function CartPage() {
+function CartPageContent() {
   const router = useRouter();
+  const { user } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingItem, setUpdatingItem] = useState<string | null>(null);
 
-  // Mock user ID - in production, this would come from auth
-  const userId = 'user_123';
+  const userId = user?.id || '';
 
   useEffect(() => {
-    loadCart();
-  }, []);
+    if (userId) {
+      loadCart();
+    }
+  }, [userId]);
 
   const loadCart = async () => {
     try {
@@ -232,5 +236,13 @@ export default function CartPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <ProtectedRoute>
+      <CartPageContent />
+    </ProtectedRoute>
   );
 }
