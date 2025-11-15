@@ -189,10 +189,50 @@ docker-compose exec redis redis-cli
 
 ## 🔐 Security
 
-- **JWT Authentication**: User Service with bcrypt password hashing
-- **Role-Based Access Control**: Customer and Admin roles
-- **API Security**: CORS, rate limiting (in services)
-- **Secrets Management**: Environment variables
+### Authentication & Authorization
+- **JWT with httpOnly Cookies**: Secure token storage preventing XSS attacks
+- **bcrypt Password Hashing**: Cost factor 12 for strong password protection
+- **Role-Based Access Control (RBAC)**: Customer and Admin roles with granular permissions
+- **Ownership Verification**: Users can only access their own resources
+- **Admin Gates**: Privileged operations require admin role
+
+### Input Validation
+- **Joi Schemas**: Comprehensive validation for all user inputs
+- **Type Checking**: Strict type validation and sanitization
+- **SQL Injection Prevention**: Parameterized queries only
+- **XSS Protection**: Input sanitization and Content Security Policy headers
+
+### Rate Limiting
+- **Cart Service**: 100 requests/15 min per IP
+- **Order Service**: 50 requests/15 min per IP
+- **Payment Operations**: 10 requests/hour per IP
+- **DOS Protection**: Rate limiting on all endpoints
+
+### Database Security
+- **Constraints**: CHECK constraints prevent invalid data (negative prices, invalid enums)
+- **Triggers**: Automatic validation of order totals and price manipulation detection
+- **Timestamps**: Logical ordering validation (paid_at > created_at, etc.)
+- **Transaction Support**: ACID guarantees for critical operations
+
+### Security Headers (Next.js)
+- **Strict-Transport-Security**: Enforce HTTPS
+- **X-Frame-Options**: Prevent clickjacking
+- **X-Content-Type-Options**: Prevent MIME sniffing
+- **Content-Security-Policy**: Restrict resource loading
+- **X-XSS-Protection**: Browser-level XSS filtering
+
+### Audit Logging
+- **Security Events**: All authentication/authorization events logged
+- **Access Tracking**: Admin operations tracked with IP and user agent
+- **Failed Attempts**: Login failures and token validation errors logged
+- **Suspicious Activity**: Automated detection and alerting
+
+### Testing
+- **Unit Tests**: Authentication middleware (15+ test cases)
+- **Validation Tests**: Input validation schemas (25+ test cases)
+- **Security Scanning**: Ready for OWASP ZAP/Burp integration
+
+**📖 Detailed Security Documentation**: See [SECURITY.md](./SECURITY.md) for comprehensive security practices, deployment checklist, and incident response procedures.
 
 ## 📡 API Documentation
 

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { logger } from './logger';
+import { AuditLogger, AuditEventType } from './auditLog';
 
 export interface JWTPayload {
   user_id: string;
@@ -68,12 +69,29 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
   } catch (error: any) {
     logger.warn('JWT validation failed', { error: error.message });
 
+    // Audit log authentication failures
     if (error.name === 'TokenExpiredError') {
+      AuditLogger.log({
+        timestamp: new Date(),
+        eventType: AuditEventType.TOKEN_EXPIRED,
+        ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+        userAgent: req.headers['user-agent'],
+        message: 'Token expired',
+        correlationId: (req as any).correlationId,
+      });
       res.status(401).json({ error: 'Token has expired' });
       return;
     }
 
     if (error.name === 'JsonWebTokenError') {
+      AuditLogger.log({
+        timestamp: new Date(),
+        eventType: AuditEventType.TOKEN_INVALID,
+        ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+        userAgent: req.headers['user-agent'],
+        message: 'Invalid token',
+        correlationId: (req as any).correlationId,
+      });
       res.status(401).json({ error: 'Invalid token' });
       return;
     }
@@ -98,8 +116,17 @@ export function requireRole(...allowedRoles: string[]) {
         userRole: req.user.role,
         requiredRoles: allowedRoles,
       });
+
+      // Audit log access denied
+      AuditLogger.logAccessDenied(req, `Required role: ${allowedRoles.join(', ')}, User role: ${req.user.role}`);
+
       res.status(403).json({ error: 'Insufficient permissions' });
       return;
+    }
+
+    // Audit log admin access
+    if (allowedRoles.includes('admin') && req.user.role === 'admin') {
+      AuditLogger.logAdminAccess(req);
     }
 
     next();
