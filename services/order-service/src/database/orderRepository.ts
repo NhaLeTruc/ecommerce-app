@@ -230,4 +230,33 @@ export class OrderRepository {
 
     return this.findById(result.rows[0].id);
   }
+
+  async findAll(limit = 20, skip = 0, status?: string): Promise<Order[]> {
+    let orderQuery = `
+      SELECT * FROM orders
+    `;
+
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (status) {
+      conditions.push(`status = $${params.length + 1}`);
+      params.push(status);
+    }
+
+    if (conditions.length > 0) {
+      orderQuery += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    orderQuery += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    params.push(limit, skip);
+
+    const result = await query(orderQuery, params);
+
+    const orders = await Promise.all(
+      result.rows.map((row: any) => this.findById(row.id))
+    );
+
+    return orders;
+  }
 }

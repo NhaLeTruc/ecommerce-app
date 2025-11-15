@@ -139,5 +139,68 @@ export function createOrderRoutes(orderService: OrderService): Router {
     }
   });
 
+  // Mark order as shipped
+  router.post('/:orderId/ship', async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { trackingNumber, carrier } = req.body;
+
+      if (!trackingNumber || !carrier) {
+        return res.status(400).json({ error: 'Tracking number and carrier are required' });
+      }
+
+      const order = await orderService.markAsShipped(orderId, trackingNumber, carrier);
+      res.json({ order });
+    } catch (error: any) {
+      logger.error('Failed to mark order as shipped', { error: error.message });
+
+      if (error.message === 'Order not found') {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      res.status(500).json({ error: 'Failed to mark order as shipped' });
+    }
+  });
+
+  // Mark order as delivered
+  router.post('/:orderId/deliver', async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const order = await orderService.markAsDelivered(orderId);
+      res.json({ order });
+    } catch (error: any) {
+      logger.error('Failed to mark order as delivered', { error: error.message });
+
+      if (error.message === 'Order not found') {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      res.status(500).json({ error: 'Failed to mark order as delivered' });
+    }
+  });
+
+  // Get all orders (admin)
+  router.get('/', async (req: Request, res: Response) => {
+    try {
+      const userId = req.query.userId as string;
+      const status = req.query.status as string;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const skip = parseInt(req.query.skip as string) || 0;
+
+      if (userId) {
+        // Get orders for specific user
+        const orders = await orderService.getUserOrders(userId, limit, skip);
+        return res.json({ orders, limit, skip });
+      }
+
+      // Admin: Get all orders (would require admin auth in production)
+      const orders = await orderService.getAllOrders(limit, skip, status);
+      res.json({ orders, limit, skip });
+    } catch (error: any) {
+      logger.error('Failed to get orders', { error: error.message });
+      res.status(500).json({ error: 'Failed to get orders' });
+    }
+  });
+
   return router;
 }

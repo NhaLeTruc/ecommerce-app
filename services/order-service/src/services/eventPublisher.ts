@@ -58,9 +58,13 @@ export class EventPublisher {
       total_amount: order.totalAmount,
       item_count: order.itemCount,
       status: order.status,
+      customer_email: order.shippingAddress?.email || 'customer@example.com', // Would come from user service
+      customer_name: order.shippingAddress?.fullName,
+      customer_phone: order.shippingAddress?.phone,
       items: order.items.map(item => ({
         product_id: item.productId,
         sku: item.sku,
+        name: item.name,
         quantity: item.quantity,
         price: item.price,
       })),
@@ -101,15 +105,22 @@ export class EventPublisher {
       user_id: order.userId,
       reason,
       cancelled_at: order.cancelledAt,
+      cancellation_reason: reason,
+      customer_email: order.shippingAddress?.email || 'customer@example.com',
+      customer_name: order.shippingAddress?.fullName,
     });
   }
 
-  async publishOrderShipped(order: Order, trackingNumber?: string): Promise<void> {
+  async publishOrderShipped(order: Order, trackingNumber?: string, carrier?: string): Promise<void> {
     await this.publishEvent('order.shipped', order.id, {
       order_number: order.orderNumber,
       user_id: order.userId,
       tracking_number: trackingNumber,
+      carrier: carrier,
       shipping_address: order.shippingAddress,
+      customer_email: order.shippingAddress?.email || 'customer@example.com', // Would come from user service
+      customer_name: order.shippingAddress?.fullName,
+      customer_phone: order.shippingAddress?.phone,
     });
   }
 
@@ -118,6 +129,8 @@ export class EventPublisher {
       order_number: order.orderNumber,
       user_id: order.userId,
       delivered_at: order.deliveredAt,
+      customer_email: order.shippingAddress?.email || 'customer@example.com', // Would come from user service
+      customer_name: order.shippingAddress?.fullName,
     });
   }
 }

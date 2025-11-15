@@ -165,6 +165,53 @@ export class OrderService {
     return cancelledOrder;
   }
 
+  async markAsShipped(orderId: string, trackingNumber: string, carrier: string): Promise<Order> {
+    logger.info('Marking order as shipped', { orderId, trackingNumber, carrier });
+
+    const order = await this.orderRepo.findById(orderId);
+
+    // Can only ship if order is confirmed or processing
+    if (![OrderStatus.CONFIRMED, OrderStatus.PROCESSING].includes(order.status)) {
+      throw new Error(`Cannot ship order in status: ${order.status}`);
+    }
+
+    // Update order status to shipped
+    const shippedOrder = await this.orderRepo.updateStatus(orderId, OrderStatus.SHIPPED);
+
+    // In a full implementation, we would store tracking details in the database
+    // For now, we'll include them in the event
+
+    // Publish shipped event
+    await this.eventPublisher.publishOrderShipped(shippedOrder, trackingNumber, carrier);
+
+    logger.info('Order marked as shipped', { orderId, trackingNumber });
+    return shippedOrder;
+  }
+
+  async markAsDelivered(orderId: string): Promise<Order> {
+    logger.info('Marking order as delivered', { orderId });
+
+    const order = await this.orderRepo.findById(orderId);
+
+    // Can only deliver if order is shipped
+    if (order.status !== OrderStatus.SHIPPED) {
+      throw new Error(`Cannot deliver order in status: ${order.status}`);
+    }
+
+    // Update order status to delivered
+    const deliveredOrder = await this.orderRepo.updateStatus(orderId, OrderStatus.DELIVERED);
+
+    // Publish delivered event
+    await this.eventPublisher.publishOrderDelivered(deliveredOrder);
+
+    logger.info('Order marked as delivered', { orderId });
+    return deliveredOrder;
+  }
+
+  async getAllOrders(limit = 20, skip = 0, status?: string): Promise<Order[]> {
+    return this.orderRepo.findAll(limit, skip, status);
+  }
+
   // Private helper methods
 
   private async validateInventory(items: Array<{ productId: string; quantity: number }>): Promise<void> {
