@@ -20,7 +20,8 @@ export default function RootLayout({
             <nav className="mt-2">
               <a href="/" className="mr-4 hover:underline">Home</a>
               <a href="/products" className="mr-4 hover:underline">Products</a>
-              <a href="/cart" className="hover:underline">Cart</a>
+              <a href="/cart" className="mr-4 hover:underline">Cart</a>
+              <a href="/orders" className="hover:underline">My Orders</a>
             </nav>
           </div>
         </header>
