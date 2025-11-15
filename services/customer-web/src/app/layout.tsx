@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import UserMenu from '@/components/UserMenu'
 
 export const metadata: Metadata = {
   title: 'Ecommerce Platform',
@@ -16,15 +17,17 @@ export default function RootLayout({
       <body>
         <header className="bg-blue-600 text-white p-4">
           <div className="container mx-auto">
-            <h1 className="text-2xl font-bold">Ecommerce Platform</h1>
-            <nav className="mt-2 flex items-center gap-4">
-              <a href="/" className="hover:underline">Home</a>
-              <a href="/products" className="hover:underline">Products</a>
-              <a href="/cart" className="hover:underline">Cart</a>
-              <a href="/orders" className="hover:underline">My Orders</a>
-              <span className="text-blue-300">|</span>
-              <a href="/admin" className="text-yellow-300 hover:underline font-semibold">Admin</a>
-            </nav>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Ecommerce Platform</h1>
+                <nav className="mt-2 flex items-center gap-4">
+                  <a href="/" className="hover:underline">Home</a>
+                  <a href="/products" className="hover:underline">Products</a>
+                  <a href="/cart" className="hover:underline">Cart</a>
+                </nav>
+              </div>
+              <UserMenu />
+            </div>
           </div>
         </header>
         <main className="container mx-auto p-4">
